@@ -1,28 +1,31 @@
 import { processImage } from '../services/processImage.js';
+import { getClientAuthToken } from '../utils/getClientAuthToken.js';
 
 export const processImageController = async (req, res) => {
     try {
-        if (!req.file) {
+        const supabase = getClientAuthToken(req, res);
+
+        if (!supabase) return;
+
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user)
+            return res.status(401).json({ error: 'Unauthorized' });
+
+        if (!req.file)
             return res.status(400).json({ error: 'No image file provided' });
-        }
 
         const manualDescription = req.body.manualDescription || null;
         
-        const result = await processImage(req.file.buffer, manualDescription);
+        const result = await processImage(user, supabase, req.file.buffer, manualDescription);
         
         res.status(200).json({
-            message: 'Image processed successfully',
-            ...result
+            message: 'image processed successfully',
+            photo: result
         });
 
     } catch (error) {
         console.error('error:', error);
-        
-        const statusCode = error.message.includes('Duplicate') ? 409 : 500;
-        
-        res.status(statusCode).json({ 
-            error: error.message,
-            details: error.message
-        });
+        res.status(500).json({ error: 'failed to process image' });
     }
 };
