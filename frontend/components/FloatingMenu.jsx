@@ -14,6 +14,10 @@ export default function FloatingMenu({ menuVisible, toggleMenu, menuAnim, refres
     }
   }
 
+  const handleUploadPhoto = async () => {
+
+  }
+
   const menuStyle = {
     opacity: menuAnim,
     transform: [

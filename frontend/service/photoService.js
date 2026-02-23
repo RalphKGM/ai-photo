@@ -43,8 +43,41 @@ export const takePhoto = async () => {
         return result.assets[0].uri;
     } catch (error) {
         console.error("Upload failed", error);
-        return null;
+        throw error;
     }
+
+}
+
+export const processPhotos = async (photos) => {
+
+  if (!photos || photos.lengths === 0)
+    throw new Error("No photos selected");
+
+  const token = await getSession();
+
+  const formData = new FormData();
+  formData.append('image', {
+      uri: result.assets[0].uri,
+      name: 'photo.jpg',
+      type: 'image/jpeg',
+  });
+
+  try {
+    const response = await fetch(`${API_URL}/api/image`, {
+        method: 'POST',
+        body: formData,
+        headers: { 
+            'Content-Type': 'multipart/form-data',
+            'Authorization': `Bearer ${token}`
+        },
+    });
+
+    //const data = await response.json();
+    //return result.assets[0].uri;
+  } catch (error) {
+    console.error("Processing photo failed", error);
+    throw error;
+  }
 
 }
 
