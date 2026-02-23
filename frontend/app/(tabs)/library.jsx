@@ -2,18 +2,20 @@ import { useState, useEffect, useRef } from 'react';
 import { View, FlatList, Text, Pressable, TextInput, Animated, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
-import FloatingMenu from '../../components/FloatingMenu';
-import PhotoItem from '../../components/PhotoItem';
-import { getPhotos } from 'service/photoService';
+import FloatingMenu from '../../components/FloatingMenu.jsx';
+import PhotoItem from '../../components/PhotoItem.jsx';
+import { getPhotos } from 'service/photoService.js';
+import PhotoViewer from '../../components/PhotoViewer';
 
 const numColumns = 4;
 
 export default function Library() {
   const [permissionResponse, requestPermission] = MediaLibrary.usePermissions({ mediaTypes: 'photo' });
   const [photos, setPhotos] = useState([]);
-  const [menuVisible, setMenuVisible] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
 
   const menuAnim = useRef(new Animated.Value(0)).current;
   const searchWidth = useRef(new Animated.Value(0)).current;
@@ -28,22 +30,12 @@ export default function Library() {
     setPhotos(assets);
   }
 
+  const handlePressPhoto = (item) => {
+    console.log('Photo pressed:', item);
+    setSelectedPhoto(item);
+  }
+
   useEffect(() => { handleGetPhotos(); }, []);
-
-  const toggleMenu = () => {
-    const toValue = menuVisible ? 0 : 1;
-    if (!menuVisible) setMenuVisible(true);
-
-    Animated.spring(menuAnim, {
-      toValue: toValue,
-      friction: 8,
-      tension: 40,
-      useNativeDriver: true,
-    }).start(() => { 
-      if (toValue === 0) 
-        setMenuVisible(false); 
-    });
-  };
 
   const toggleSearch = () => {
     const toValue = isSearching ? 0 : 1;
@@ -101,13 +93,23 @@ export default function Library() {
         numColumns={numColumns}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingHorizontal: 2.5 }}
-        renderItem={({ item }) => <PhotoItem uri={item.thumbnail_data} numColumns={numColumns} />}
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => 
+          <PhotoItem 
+            uri={item.thumbnail_data} 
+            numColumns={numColumns} 
+            onPress={() => handlePressPhoto(item)}
+        />}
+      />
+
+      <PhotoViewer 
+        visible={!!selectedPhoto} 
+        photo={selectedPhoto} 
+        onClose={() => setSelectedPhoto(null)} 
       />
 
       {/* + button */}
       <FloatingMenu 
-        menuVisible={menuVisible} 
-        toggleMenu={toggleMenu} 
         menuAnim={menuAnim} 
         refreshPhotos={handleGetPhotos}
       />

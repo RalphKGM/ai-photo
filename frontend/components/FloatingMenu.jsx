@@ -1,8 +1,11 @@
 import { View, Text, Pressable, Animated, Alert } from 'react-native';
+import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { takePhoto } from 'service/photoService';
 
-export default function FloatingMenu({ menuVisible, toggleMenu, menuAnim, refreshPhotos }) {
+export default function FloatingMenu({ menuAnim, refreshPhotos }) {
+  const [menuVisible, setMenuVisible] = useState(false);
+
 
   const handleTakePhoto = async () => {
     const photoUri = await takePhoto();
@@ -14,9 +17,20 @@ export default function FloatingMenu({ menuVisible, toggleMenu, menuAnim, refres
     }
   }
 
-  const handleUploadPhoto = async () => {
+  const toggleMenu = () => {
+    const toValue = menuVisible ? 0 : 1;
+    if (!menuVisible) setMenuVisible(true);
 
-  }
+    Animated.spring(menuAnim, {
+      toValue: toValue,
+      friction: 8,
+      tension: 40,
+      useNativeDriver: true,
+    }).start(() => { 
+      if (toValue === 0) 
+        setMenuVisible(false); 
+    });
+  };
 
   const menuStyle = {
     opacity: menuAnim,
@@ -38,11 +52,11 @@ export default function FloatingMenu({ menuVisible, toggleMenu, menuAnim, refres
 
   return (
     <>
-    	{/* context menu */}
+      {/* menu */}
       {menuVisible && (
         <Animated.View 
           style={[menuStyle]} 
-          className="absolute bottom-28 right-8 w-56 bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden z-20"
+          className="absolute bottom-28 right-8 w-56 bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden"
         >
           <Pressable onPress={handleTakePhoto} className="flex-row items-center justify-between p-4 border-b border-gray-100 active:bg-gray-100">
             <Text className="text-lg">Take Photo</Text>
@@ -56,22 +70,15 @@ export default function FloatingMenu({ menuVisible, toggleMenu, menuAnim, refres
       )}
 
       {/* + button */}
-      <Animated.View 
-        style={{ 
-          backgroundColor: buttonColor,
-          elevation: 5,
-          zIndex: 10
-        }}
-        className="absolute bottom-8 right-8 w-16 h-16 rounded-full items-center justify-center shadow-lg"
+      <Pressable 
+        onPress={toggleMenu}
+        className="absolute bottom-8 right-8 w-16 h-16 bg-[#121212] rounded-full items-center justify-center shadow-lg"
+        style={{ elevation: 5, zIndex: 10 }}
       >
-        <Pressable 
-          onPress={toggleMenu}
-        >
-          <Animated.View style={{ transform: [{ rotate: iconRotation }] }}>
-            <Ionicons name="add" size={32} color="white" />
-          </Animated.View>
-        </Pressable>
-      </Animated.View>
+        <Animated.View style={{ transform: [{ rotate: iconRotation }] }}>
+          <Ionicons name="add" size={32} color="white" />
+        </Animated.View>
+      </Pressable>
     </>
   );
 }
