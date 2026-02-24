@@ -4,9 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
 import FloatingMenu from '../../components/FloatingMenu.jsx';
 import PhotoItem from '../../components/PhotoItem.jsx';
-import { getPhotos } from 'service/photoService.js';
+import { getPhotos, getPhotoLocalURI } from 'service/photoService.js';
 import PhotoViewer from '../../components/PhotoViewer';
 import { usePhotoContext } from 'context/PhotoContext.jsx';
+import { getCachedPhotos, setCachedPhotos } from '../../service/cacheService.js';
 
 const numColumns = 4;
 
@@ -25,13 +26,54 @@ export default function Library() {
       const { status } = await requestPermission();
       if (status !== 'granted') return;
     }
-    const assets = await getPhotos();
-    setPhotos(assets);
-  };
+
+    //check cache memory first
+    const cached = await getCachedPhotos();
+    if (cached && cached.length) {
+      console.log('1')
+      const photosWithUris = await Promise.all(
+      cached.map(async (photo) => {
+        if (photo.uri) 
+          return photo;
+        /*
+        if (photo.uri) return photo;
+        try {
+          const uri = await getPhotoLocalURI(photo.photo_id);
+          return { ...photo, uri };
+        } catch (error) {
+          console.error(`Error fetching URI for ${photo.photo_id}:`, error);
+          return photo;
+        }
+        */
+      })
+    );
+    setPhotos(photosWithUris);
+    return;
+  }
+
+  //fallback to supabase
+  const assets = await getPhotos();
+  const photosWithUris = await Promise.all(
+    assets.map(async (photo) => {
+      if (photo.uri) return photo;
+      try {
+        const uri = await getPhotoLocalURI(photo.photo_id);
+        return { ...photo, uri };
+      } catch (error) {
+        console.error(`Error fetching URI for ${photo.photo_id}:`, error);
+        return photo;
+      }
+    })
+  );
+  //cache the photos
+  setPhotos(photosWithUris);
+  await setCachedPhotos(photosWithUris);
+};
   
   useEffect(() => { handleGetPhotos(); }, []);
 
   const handlePressPhoto = useCallback((item) => {
+    console.log('Photo pressed:', item.item.photo_id);
     setSelectedPhoto(item);
   }, []);
   
@@ -54,6 +96,7 @@ export default function Library() {
 
   const renderPhotoItem = useCallback(
     ({ item }) => (
+      <>
       <PhotoItem
         photoId={item.photo_id}
         localUri={item.uri ?? null}
@@ -61,6 +104,7 @@ export default function Library() {
         onPress={handlePressPhoto}
         item={item}
       />
+      </>
     ),
     [handlePressPhoto]
   );

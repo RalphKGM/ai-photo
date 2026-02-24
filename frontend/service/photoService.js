@@ -93,7 +93,7 @@ export const processPhotos = async (photos) => {
     });
 
     const data = await response.json();
-    console.log('POST RESPONSE:', data)
+    //console.log('POST RESPONSE:', data)
     //return result.assets[0].uri;
   } catch (error) {
     console.error("Processing photo failed", error);

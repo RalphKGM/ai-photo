@@ -9,6 +9,8 @@ function PhotoItem({ photoId, localUri, numColumns, onPress, item }) {
   const [resolvedUri, setResolvedUri] = useState(localUri ?? null);
   const size = (windowWidth - 4) / numColumns - 4;
 
+  //resolve URI when photoid or localuri changes
+  //if local uri exist, set it. Otherwise call getPhotoLocalURI
   useEffect(() => {
     if (localUri) {
       setResolvedUri(localUri);
@@ -21,7 +23,6 @@ function PhotoItem({ photoId, localUri, numColumns, onPress, item }) {
       try {
         const result = await getPhotoLocalURI(photoId);
         if (isMounted) {
-          console.log(photoId);
           setResolvedUri(result);
         }
       } catch (error) {
@@ -34,7 +35,7 @@ function PhotoItem({ photoId, localUri, numColumns, onPress, item }) {
   }, [photoId, localUri]);
 
   const handlePress = useCallback(() => {
-    onPress({ ...item, uri: resolvedUri });
+    onPress({ item, uri: resolvedUri });
   }, [onPress, item, resolvedUri]);
 
   return (
@@ -45,6 +46,7 @@ function PhotoItem({ photoId, localUri, numColumns, onPress, item }) {
             source={{ uri: resolvedUri }}
             style={{ width: size, height: size }}
             contentFit="cover"
+            cachePolicy="memory-disk"
           />
         )}
       </View>
