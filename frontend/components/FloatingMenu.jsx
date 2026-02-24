@@ -2,8 +2,10 @@ import { View, Text, Pressable, Animated, Alert } from 'react-native';
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { takePhoto } from 'service/photoService';
+import { useRouter } from 'expo-router';
 
 export default function FloatingMenu({ menuAnim, appendPhoto }) {
+  const router = useRouter();
   const [menuVisible, setMenuVisible] = useState(false);
 
 
@@ -14,6 +16,11 @@ export default function FloatingMenu({ menuAnim, appendPhoto }) {
       appendPhoto(newPhoto);
     }
   }
+
+  const handleUploadPhoto = () => {
+    toggleMenu();
+    router.push('/upload');
+  };
 
   const toggleMenu = () => {
     const toValue = menuVisible ? 0 : 1;
@@ -55,7 +62,7 @@ export default function FloatingMenu({ menuAnim, appendPhoto }) {
             <Text className="text-lg">Take Photo</Text>
             <Ionicons name="camera-outline" size={22} color="black" />
           </Pressable>
-          <Pressable className="flex-row items-center justify-between p-4 active:bg-gray-100">
+          <Pressable onPress={handleUploadPhoto} className="flex-row items-center justify-between p-4 active:bg-gray-100">
             <Text className="text-lg">Upload Photo</Text>
             <Ionicons name="image-outline" size={22} color="black" />
           </Pressable>

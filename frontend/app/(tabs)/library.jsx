@@ -17,7 +17,7 @@ export default function Library() {
   const [selectedPhoto, setSelectedPhoto] = useState(null);
 
   const menuAnim = useRef(new Animated.Value(0)).current;
-  const searchWidth = useRef(new Animated.Value(0)).current;
+  const searchAnim = useRef(new Animated.Value(0)).current;
 
   const handleGetPhotos = async () => {
     if (permissionResponse?.status !== 'granted') {
@@ -44,7 +44,7 @@ export default function Library() {
     const toValue = isSearching ? 0 : 1;
     if (!isSearching) setIsSearching(true);
 
-    Animated.timing(searchWidth, { 
+    Animated.timing(searchAnim, { 
       toValue: toValue, 
       duration: 250, 
       useNativeDriver: false 
@@ -70,36 +70,55 @@ export default function Library() {
     [handlePressPhoto]
   );
 
+  const titleOpacity = searchAnim.interpolate({ inputRange: [0, 0.3], outputRange: [1, 0] });
+  const searchWidth = searchAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '78%'] });
+  const searchOpacity = searchAnim.interpolate({ inputRange: [0.2, 1], outputRange: [0, 1] });
+
   return (
     <View className="flex-1 bg-white">
       {/* header */}
-      <View className="flex-row items-center justify-between px-4 pt-16 pb-5 bg-[#F5F5F7]">
-        {!isSearching ? <Text className="text-3xl font-bold">Photos</Text> : (
-          <Animated.View
-            style={{
-              width: searchWidth.interpolate({ 
-                inputRange: [0, 1], outputRange: ['0%', '75%'] 
-              }),
-            }}
+      <View className="bg-white pt-16 pb-3 px-4 border-b border-gray-100">
+        <View className="flex-row items-center justify-between">
+          <Animated.Text
+            style={{ opacity: titleOpacity, position: isSearching ? 'absolute' : 'relative' }}
+            className="text-3xl font-extrabold text-gray-900 tracking-tight"
           >
-            <TextInput
-              placeholder="Search photos..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoFocus
-              className="bg-gray-200 rounded-xl px-4 py-2"
-            />
-          </Animated.View>
-        )}
+            Photos
+          </Animated.Text>
 
-        {!isSearching ? (
-          <Pressable onPress={toggleSearch}>
-            <Ionicons name="search" size={28} color="#000" />
-          </Pressable>
-        ) : (
-          <Pressable onPress={toggleSearch} className="ml-3">
-            <Text className="text-black text-lg">Cancel</Text>
-          </Pressable>
+          {isSearching && (
+            <Animated.View style={{ width: searchWidth, opacity: searchOpacity }}>
+              <TextInput
+                placeholder="Search your photos..."
+                placeholderTextColor="#aaa"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus
+                className="bg-gray-100 rounded-xl px-4 py-3 text-gray-900 text-base"
+              />
+            </Animated.View>
+          )}
+
+          <View className="flex-row items-center">
+            {!isSearching ? (
+              <Pressable
+                onPress={toggleSearch}
+              >
+                <Ionicons name="search" size={20} color="#111" />
+              </Pressable>
+            ) : (
+              <Pressable onPress={toggleSearch} className="px-1 py-1">
+                <Text className="text-base font-medium text-gray-900">Cancel</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+
+        {/* photo count */}
+        {!isSearching && (
+          <Text className="text-xs text-gray-400 mt-0.5">
+            {photos.length} {photos.length === 1 ? 'photo' : 'photos'}
+          </Text>
         )}
       </View>
 
@@ -108,7 +127,7 @@ export default function Library() {
         data={photos}
         numColumns={numColumns}
         keyExtractor={(item) => item.photo_id}
-        contentContainerStyle={{ paddingHorizontal: 2.5 }}
+        contentContainerStyle={{ paddingHorizontal: 2.5, paddingTop: 2 }}
         showsVerticalScrollIndicator={false}
         renderItem={renderPhotoItem}
       />

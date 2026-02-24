@@ -5,7 +5,7 @@ import { getPhotoLocalURI } from 'service/photoService';
 
 const { width: windowWidth } = Dimensions.get('window');
 
-const PhotoItem = ({ photoId, localUri, numColumns, onPress, item }) => {
+function PhotoItem({ photoId, localUri, numColumns, onPress, item }) {
   const [resolvedUri, setResolvedUri] = useState(localUri ?? null);
   const size = (windowWidth - 4) / numColumns - 4;
 
