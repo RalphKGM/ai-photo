@@ -27,15 +27,33 @@ export default function Library() {
       if (status !== 'granted') return;
     }
 
-    //check cache memory first
+    //check cache first
     const cached = await getCachedPhotos();
     if (cached && cached.length) {
-      console.log('1')
       const photosWithUris = await Promise.all(
-      cached.map(async (photo) => {
-        if (photo.uri) 
-          return photo;
-        /*
+        cached.map(async (photo) => {
+          if (photo.uri) return photo;
+          try {
+            const uri = await getPhotoLocalURI(photo.photo_id);
+            return { ...photo, uri };
+          } catch (error) {
+            console.error(`Error fetching URI for ${photo.photo_id}:`, error);
+            return photo;
+          }
+        })
+      );
+
+      const sortedCached = photosWithUris
+        .filter(Boolean)
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      setPhotos(sortedCached);
+      return;
+    }
+
+    //fallback to supabase
+    const assets = await getPhotos();
+    const photosWithUris = await Promise.all(
+      assets.map(async (photo) => {
         if (photo.uri) return photo;
         try {
           const uri = await getPhotoLocalURI(photo.photo_id);
@@ -44,31 +62,16 @@ export default function Library() {
           console.error(`Error fetching URI for ${photo.photo_id}:`, error);
           return photo;
         }
-        */
       })
     );
-    setPhotos(photosWithUris);
-    return;
-  }
 
-  //fallback to supabase
-  const assets = await getPhotos();
-  const photosWithUris = await Promise.all(
-    assets.map(async (photo) => {
-      if (photo.uri) return photo;
-      try {
-        const uri = await getPhotoLocalURI(photo.photo_id);
-        return { ...photo, uri };
-      } catch (error) {
-        console.error(`Error fetching URI for ${photo.photo_id}:`, error);
-        return photo;
-      }
-    })
-  );
-  //cache the photos
-  setPhotos(photosWithUris);
-  await setCachedPhotos(photosWithUris);
-};
+    //cache the photos
+    const sorted = photosWithUris
+      .filter(Boolean)
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    setPhotos(sorted);
+    await setCachedPhotos(sorted);
+  };
   
   useEffect(() => { handleGetPhotos(); }, []);
 
