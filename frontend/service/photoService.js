@@ -12,128 +12,136 @@ export const takePhoto = async () => {
         return;
     }
 
-    const result = await ImagePicker.launchCameraAsync({
-        quality: 1,
-    });
-
+    const result = await ImagePicker.launchCameraAsync({ quality: 1 });
     if (result.canceled) return;
 
     const photo = await MediaLibrary.createAssetAsync(result.assets[0].uri);
-
-    console.log('Take photo:', photo.id)
-
     const token = await getSession();
 
     const formData = new FormData();
     formData.append('image', {
-      uri: result.assets[0].uri,
-      name: 'photo.jpg',
-      type: 'image/jpeg',
-    });
-    formData.append('photo_id', photo.id);
-
-    try {
-      const response = await fetch(`${API_URL}/api/image`, {
-        method: 'POST',
-        body: formData,
-        headers: { 
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${token}`
-        },
-      });
-
-      const data = await response.json();
-      return { photo_id: photo.id, uri: result.assets[0].uri };
-    } catch (error) {
-      console.error("Upload failed", error);
-      throw error;
-    }
-
-
-}
-
-export const processPhotos = async (photos) => {
-  const token = await getSession();
-  console.log('Photo count:', photos.length)
-
-  if (!photos || photos.length === 0) throw new Error("No photos selected");
-
-  const formData = new FormData();
-
-  if (photos.length === 1) {
-    formData.append('image', {
-        uri: photos[0].uri,
+        uri: result.assets[0].uri,
         name: 'photo.jpg',
         type: 'image/jpeg',
     });
-    formData.append('photo_id', photos[0].assetId);
-  } else {
-    photos.forEach((photo, index) => {
-      console.log('PHOTO URI:', photo.uri)
-      formData.append('images', {
-        uri: photo.uri,
-        name: `photo_${index}.jpg`,
-        type: 'image/jpeg',
-      });
-      formData.append('photo_id', photo.assetId);
-      console.log(photo.assetId)
-    });
-  }
+    formData.append('device_asset_id', photo.id);
 
-  try {
-    const api = (photos.length === 1) ? `${API_URL}/api/image` : `${API_URL}/api/images/batch`;
-    
+    try {
+        const response = await fetch(`${API_URL}/api/image`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'Content-Type': 'multipart/form-data',
+                'Authorization': `Bearer ${token}`
+            },
+        });
+        const data = await response.json();
+        return { id: data.photo?.id, uri: result.assets[0].uri };
+    } catch (error) {
+        console.error("Upload failed", error);
+        throw error;
+    }
+};
+
+export const processPhotos = async (photos) => {
+    const token = await getSession();
+
+    if (!photos || photos.length === 0) throw new Error("No photos selected");
+
+    const assets = photos.map((photo) => {
+        const assetId = photo.fileName ? photo.fileName.replace(/\.[^/.]+$/, '') : null;
+        return { ...photo, resolvedAssetId: assetId };
+    });
+
+    const formData = new FormData();
+
+    if (assets.length === 1) {
+        formData.append('image', {
+            uri: assets[0].uri,
+            name: 'photo.jpg',
+            type: 'image/jpeg',
+        });
+        formData.append('device_asset_id', assets[0].resolvedAssetId);
+    } else {
+        assets.forEach((photo, index) => {
+            formData.append('images', {
+                uri: photo.uri,
+                name: `photo_${index}.jpg`,
+                type: 'image/jpeg',
+            });
+            formData.append('device_asset_id', photo.resolvedAssetId);
+        });
+    }
+
+    const api = assets.length === 1 ? `${API_URL}/api/image` : `${API_URL}/api/images/batch`;
+
     const response = await fetch(api, {
         method: 'POST',
         body: formData,
-        headers: { 
+        headers: {
             'Content-Type': 'multipart/form-data',
             'Authorization': `Bearer ${token}`
         },
     });
 
     const data = await response.json();
-    //console.log('POST RESPONSE:', data)
-    //return result.assets[0].uri;
-  } catch (error) {
-    console.error("Processing photo failed", error);
-  }
-}
+
+    if (response.status === 409 || data.error === 'Duplicate image') {
+        return { added: [], duplicates: assets.length };
+    }
+
+    if (!response.ok) {
+        console.error('processPhotos error:', data);
+        return { added: [], duplicates: 0 };
+    }
+
+    if (assets.length === 1) {
+        return {
+            added: [{ id: data.photo?.id, uri: assets[0].uri }],
+            duplicates: 0
+        };
+    }
+
+    const successfulResults = data.results || [];
+    const added = successfulResults.map(r => ({
+        id: r.photo?.id,
+        uri: assets[r.index].uri,
+    }));
+    return { added, duplicates: assets.length - added.length };
+};
 
 export const getPhotos = async (query = '') => {
-  try {
-    const token = await getSession();
+    try {
+        const token = await getSession();
 
-    const response = await fetch(`${API_URL}/api/search`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ query }),
-    });
+        const response = await fetch(`${API_URL}/api/search`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ query }),
+        });
 
-    const data = await response.json();
-    //console.log(data.result[0].photo_id)
-    //console.log(data.result)
+        const data = await response.json();
 
-    if (response.ok) {
-      return data.result;
-    } else {
-      throw new Error(data.error || 'Failed to load photos');
+        if (response.ok) {
+            return data.results;
+        } else {
+            throw new Error(data.error || 'Failed to load photos');
+        }
+    } catch (error) {
+        console.error("getPhotos Service Error:", error.message);
+        throw error;
     }
-  } catch (error) {
-    console.error("getPhotos Service Error:", error.message);
-    throw error; 
-  }
 };
 
 export const getPhotoLocalURI = async (photoId) => {
-  try {
-    const assetInfo = await MediaLibrary.getAssetInfoAsync(photoId);
-    return assetInfo.localUri || assetInfo.uri;
-  } catch (error) {
-    console.error("Asset not found:", photoId);
-    throw error;
-  }
-}
+    try {
+        const assetInfo = await MediaLibrary.getAssetInfoAsync(photoId);
+        return assetInfo.localUri || assetInfo.uri;
+    } catch (error) {
+        console.error("Asset not found:", photoId);
+        throw error;
+    }
+};

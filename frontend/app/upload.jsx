@@ -9,7 +9,7 @@ import { usePhotoContext } from 'context/PhotoContext';
 export default function Upload() {
   const router = useRouter();
   const { appendPhoto } = usePhotoContext();
-  const [uploadState, setUploadState] = useState({ loading: false, count: 0, done: false });
+  const [uploadState, setUploadState] = useState({ loading: false, count: 0, done: false, duplicates: 0, added: 0 });
 
   const handleSelectFromGallery = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -19,21 +19,22 @@ export default function Upload() {
     });
 
     if (!result.canceled) {
-      setUploadState({ loading: true, count: result.assets.length, done: false });
+      setUploadState({ loading: true, count: result.assets.length, done: false, duplicates: 0, added: 0 });
 
       try {
-        await processPhotos(result.assets);
+        const { added } = await processPhotos(result.assets);
 
-        result.assets.forEach((asset) => {
-          const id = asset.assetId || asset.id;
-          appendPhoto({ photo_id: id, uri: asset.uri });
+        added.forEach((asset) => {
+          appendPhoto({ id: asset.assetId, device_asset_id: asset.assetId, uri: asset.uri });
         });
 
-        setUploadState({ loading: false, count: result.assets.length, done: true });
-        setTimeout(() => router.back(), 1200);
+        const duplicates = result.assets.length - added.length;
+        setUploadState({ loading: false, count: result.assets.length, done: true, duplicates, added: added.length });
+
+        setTimeout(() => router.back(), 1800);
       } catch (e) {
         console.error('Upload failed', e);
-        setUploadState({ loading: false, count: 0, done: false });
+        setUploadState({ loading: false, count: 0, done: false, duplicates: 0, added: 0 });
       }
     }
   };
@@ -80,13 +81,19 @@ export default function Upload() {
         )}
 
         {uploadState.done && !uploadState.loading && (
-          <View className="mt-4 p-5 bg-[#F0FFF4] rounded-2xl flex-row items-center">
-            <Ionicons name="checkmark-circle" size={24} color="#22C55E" />
-            <View className="ml-4 flex-1">
-              <Text className="text-green-700 font-semibold text-base">
-                {uploadState.count} photo{uploadState.count !== 1 ? 's' : ''} added!
-              </Text>
-              <Text className="text-green-500 text-sm mt-0.5">Returning to your library…</Text>
+          <View className="mt-4 p-5 bg-[#F0FFF4] rounded-2xl">
+            <View className="flex-row items-center">
+              <Ionicons name="checkmark-circle" size={24} color="#22C55E" />
+              <View className="ml-4 flex-1">
+                <Text className="text-green-700 font-semibold text-base">
+                  {uploadState.added} photo{uploadState.added !== 1 ? 's' : ''} added
+                </Text>
+                {uploadState.duplicates > 0 && (
+                  <Text className="text-gray-400 text-sm mt-0.5">
+                    {uploadState.duplicates} duplicate{uploadState.duplicates !== 1 ? 's' : ''} skipped
+                  </Text>
+                )}
+              </View>
             </View>
           </View>
         )}

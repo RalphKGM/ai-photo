@@ -9,22 +9,20 @@ function PhotoItem({ photoId, localUri, numColumns, onPress, item }) {
   const [resolvedUri, setResolvedUri] = useState(localUri ?? null);
   const size = (windowWidth - 4) / numColumns - 4;
 
-  //resolve URI when photoid or localuri changes
-  //if local uri exist, set it. Otherwise call getPhotoLocalURI
   useEffect(() => {
     if (localUri) {
       setResolvedUri(localUri);
       return;
     }
 
+    if (!photoId) return;
+
     let isMounted = true;
 
     const handleGetPhotoURI = async () => {
       try {
         const result = await getPhotoLocalURI(photoId);
-        if (isMounted) {
-          setResolvedUri(result);
-        }
+        if (isMounted) setResolvedUri(result);
       } catch (error) {
         console.error("Error fetching local URI:", error);
       }
@@ -52,6 +50,6 @@ function PhotoItem({ photoId, localUri, numColumns, onPress, item }) {
       </View>
     </Pressable>
   );
-};
+}
 
 export default memo(PhotoItem);

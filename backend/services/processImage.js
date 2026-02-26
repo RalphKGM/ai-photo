@@ -1,11 +1,22 @@
-import { getCompressedImageBuffer } from '../utils/compressImage.js';
+import { getCompressedImageBuffer, computePhash } from '../utils/compressImage.js';
 import { describeImage } from './ai/describeImage.js';
 import { generateEmbedding } from './ai/generateEmbedding.js';
 
-export const processImage = async (user, supabase, image, photo_id, manualDescription = null) => {
+export const processImage = async (user, supabase, image, device_asset_id, manualDescription = null) => {
     const start = Date.now();
     if (!user || !user.id) throw new Error('Invalid user object or missing user.id');
+
     const compressedImage = await getCompressedImageBuffer(image);
+    const phash = await computePhash(compressedImage);
+
+    const { data: existing } = await supabase
+        .from('photo')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('phash', phash)
+        .maybeSingle();
+
+    if (existing) throw new Error('DUPLICATE_IMAGE');
 
     const description = await describeImage(compressedImage);
 
@@ -35,6 +46,8 @@ export const processImage = async (user, supabase, image, photo_id, manualDescri
         .from('photo')
         .insert({
             user_id: user.id,
+            device_asset_id,
+            phash,
             descriptive,
             literal,
             tags,
@@ -47,8 +60,6 @@ export const processImage = async (user, supabase, image, photo_id, manualDescri
 
     if (insertError) throw insertError;
 
-    const duration = Date.now() - start;
-    console.log(`processImage: completed in ${duration}ms`);
-
+    console.log(`processImage: completed in ${Date.now() - start}ms`);
     return insertData;
 };
