@@ -34,3 +34,15 @@ export const addPhotoToCache = async(photo) => {
     console.error('addPhotoToCache', e);
   }
 }
+
+export const removePhotoFromCache = async (photoId) => {
+  try {
+    const existing = (await getCachedPhotos()) || [];
+    const filtered = existing.filter(
+      (photo) => photo.photo_id !== photoId
+    );
+    await setCachedPhotos(filtered);
+  } catch (e) {
+    console.error('removePhotoFromCache', e);
+  }
+}

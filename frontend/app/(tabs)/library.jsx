@@ -4,10 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
 import FloatingMenu from '../../components/FloatingMenu.jsx';
 import PhotoItem from '../../components/PhotoItem.jsx';
-import { getPhotos, getPhotoLocalURI } from 'service/photoService.js';
+import { getPhotos, getPhotoLocalURI, deletePhoto } from 'service/photoService.js';
 import PhotoViewer from '../../components/PhotoViewer.jsx';
 import { usePhotoContext } from 'context/PhotoContext.jsx';
-import { getCachedPhotos, setCachedPhotos } from '../../service/cacheService.js';
+import { getCachedPhotos, setCachedPhotos, removePhotoFromCache } from '../../service/cacheService.js';
 
 const numColumns = 4;
 
@@ -17,6 +17,7 @@ export default function Library() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
 
   const menuAnim = useRef(new Animated.Value(0)).current;
   const searchAnim = useRef(new Animated.Value(0)).current;
@@ -115,6 +116,26 @@ export default function Library() {
     console.log('Photo pressed:', item.item.photo_id);
     setSelectedPhoto(item);
   }, []);
+
+  const handleDeleteSelectedPhoto = useCallback(async () => {
+    if (!selectedPhoto?.item?.photo_id || isDeletingPhoto) return;
+
+    try {
+      setIsDeletingPhoto(true);
+      const deletedPhotoId = selectedPhoto.item.photo_id;
+
+      await deletePhoto(deletedPhotoId);
+      setPhotos((prev) =>
+        prev.filter((photo) => photo.photo_id !== deletedPhotoId)
+      );
+      await removePhotoFromCache(deletedPhotoId);
+      setSelectedPhoto(null);
+    } catch (error) {
+      console.error('Delete error:', error);
+    } finally {
+      setIsDeletingPhoto(false);
+    }
+  }, [isDeletingPhoto, selectedPhoto, setPhotos]);
   
   const toggleSearch = () => {
     const toValue = isSearching ? 0 : 1;
@@ -215,6 +236,8 @@ export default function Library() {
         visible={!!selectedPhoto} 
         photo={selectedPhoto} 
         onClose={() => setSelectedPhoto(null)} 
+        onDelete={handleDeleteSelectedPhoto}
+        isDeleting={isDeletingPhoto}
       />
 
       {/* + button */}
