@@ -1,88 +1,227 @@
-import { useState, useEffect, useLayoutEffect } from 'react';
-import { View, FlatList, Dimensions, Text, Pressable } from 'react-native';
-import { useNavigation } from 'expo-router';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { View, FlatList, Text, Pressable, TextInput, Animated, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
-import { Image } from 'expo-image';
+import FloatingMenu from '../../components/FloatingMenu.jsx';
+import PhotoItem from '../../components/PhotoItem.jsx';
+import { getPhotos, getPhotoLocalURI } from 'service/photoService.js';
+import PhotoViewer from '../../components/PhotoViewer.jsx';
+import { usePhotoContext } from 'context/PhotoContext.jsx';
+import { getCachedPhotos, setCachedPhotos } from '../../service/cacheService.js';
 
 const numColumns = 4;
 
 export default function Library() {
-  const navigation = useNavigation();
-  const [permissionResponse, requestPermission] = MediaLibrary.usePermissions({mediaTypes: 'photo'});
-  const [photos, setPhotos] = useState([]);
+  const [permissionResponse, requestPermission] = MediaLibrary.usePermissions({ mediaTypes: 'photo' });
+  const { photos, setPhotos, appendPhoto } = usePhotoContext();
+  const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitleStyle: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        marginLeft: 0,
-        marginTop: 0,
-        alignSelf: 'center',
-      },
-      headerRight: () => (
-        <>
-        <Pressable
-          onPress={() => {}}
-          className="mr-4 items-center justify-center h-full"
-        >
-          <Ionicons name="search" size={28} color="#000" />
-        </Pressable>
-        <Pressable
-          onPress={() => {}}
-          className="mr-4 items-center justify-center h-full"
-        >
-          {/*<Text className="bg-gray-400 p-2 rounded-2xl">Select</Text> */}
-        </Pressable>
-        </>
-      ),
-    });
-  }, [navigation]);
+  const menuAnim = useRef(new Animated.Value(0)).current;
+  const searchAnim = useRef(new Animated.Value(0)).current;
 
-  const getPhotos = async () => {
-    if (permissionResponse?.status !== 'granted')
-      await requestPermission();
+  const handleGetPhotos = async () => {
+    if (permissionResponse?.status !== 'granted') {
+      const { status } = await requestPermission();
+      if (status !== 'granted') return;
+    }
 
-    const { assets } = await MediaLibrary.getAssetsAsync({
-      first: 100, // limit to 100 photos
-      mediaType: 'photo',
-      sortBy: 'creationTime'
-    });
+    //check cache first
+    const cached = await getCachedPhotos();
+    if (cached && cached.length) {
+      const photosWithUris = await Promise.all(
+        cached.map(async (photo) => {
+          if (photo.uri) return photo;
+          try {
+            const uri = await getPhotoLocalURI(photo.photo_id);
+            return { ...photo, uri };
+          } catch (error) {
+            console.error(`Error fetching URI for ${photo.photo_id}:`, error);
+            return photo;
+          }
+        })
+      );
 
-    setPhotos(assets);
-  }
+      const sortedCached = photosWithUris
+        .filter(Boolean)
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      setPhotos(sortedCached);
+      return;
+    }
+
+    //fallback to supabase
+    const assets = await getPhotos();
+    const photosWithUris = await Promise.all(
+      assets.map(async (photo) => {
+        if (photo.uri) return photo;
+        try {
+          const uri = await getPhotoLocalURI(photo.photo_id);
+          return { ...photo, uri };
+        } catch (error) {
+          console.error(`Error fetching URI for ${photo.photo_id}:`, error);
+          return photo;
+        }
+      })
+    );
+
+    //cache the photos
+    const sorted = photosWithUris
+      .filter(Boolean)
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    setPhotos(sorted);
+    await setCachedPhotos(sorted);
+  };
+  
+  useEffect(() => { handleGetPhotos(); }, []);
 
   useEffect(() => {
-    getPhotos();
-  }, []);
+    if (!isSearching) {
+      handleGetPhotos();
+    }
+  }, [isSearching]);
 
-  return(
+  const handleSearch = async () => {
+    try {
+      if (!searchQuery || searchQuery.trim() === '') {
+        await handleGetPhotos();
+        return;
+      }
+
+      const assets = await getPhotos(searchQuery.trim());
+      const photosWithUris = await Promise.all(
+        assets.map(async (photo) => {
+          if (photo.uri) return photo;
+          try {
+            const uri = await getPhotoLocalURI(photo.photo_id);
+            return { ...photo, uri };
+          } catch (error) {
+            console.error(`Error fetching URI for ${photo.photo_id}:`, error);
+            return photo;
+          }
+        })
+      );
+
+      const sorted = photosWithUris
+        .filter(Boolean)
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      setPhotos(sorted);
+    } catch (e) {
+      console.error('Search error', e);
+    }
+  };
+
+  const handlePressPhoto = useCallback((item) => {
+    console.log('Photo pressed:', item.item.photo_id);
+    setSelectedPhoto(item);
+  }, []);
+  
+  const toggleSearch = () => {
+    const toValue = isSearching ? 0 : 1;
+    if (!isSearching) setIsSearching(true);
+
+    Animated.timing(searchAnim, { 
+      toValue: toValue, 
+      duration: 250, 
+      useNativeDriver: false 
+    }).start(() => {
+      if (toValue === 0) { 
+        setIsSearching(false); 
+        setSearchQuery(''); 
+        Keyboard.dismiss(); 
+      }
+    });
+  };
+
+  const renderPhotoItem = useCallback(
+    ({ item }) => (
+      <>
+      <PhotoItem
+        photoId={item.photo_id}
+        localUri={item.uri ?? null}
+        numColumns={numColumns}
+        onPress={handlePressPhoto}
+        item={item}
+      />
+      </>
+    ),
+    [handlePressPhoto]
+  );
+
+  const titleOpacity = searchAnim.interpolate({ inputRange: [0, 0.3], outputRange: [1, 0] });
+  const searchWidth = searchAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '78%'] });
+  const searchOpacity = searchAnim.interpolate({ inputRange: [0.2, 1], outputRange: [0, 1] });
+
+  return (
     <View className="flex-1 bg-white">
+      {/* header */}
+      <View className="bg-white pt-16 pb-3 px-4 border-b border-gray-100">
+        <View className="flex-row items-center justify-between">
+          <Animated.Text
+            style={{ opacity: titleOpacity, position: isSearching ? 'absolute' : 'relative' }}
+            className="text-3xl font-extrabold text-gray-900 tracking-tight"
+          >
+            Photos
+          </Animated.Text>
+
+          {isSearching && (
+            <Animated.View style={{ width: searchWidth, opacity: searchOpacity }}>
+              <TextInput
+                placeholder="Search your photos..."
+                placeholderTextColor="#aaa"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                onSubmitEditing={handleSearch}
+                autoFocus
+                className="bg-gray-100 rounded-xl px-4 py-3 text-gray-900 text-base"
+              />
+            </Animated.View>
+          )}
+
+          <View className="flex-row items-center">
+            {!isSearching ? (
+              <Pressable
+                onPress={toggleSearch}
+              >
+                <Ionicons name="search" size={20} color="#111" />
+              </Pressable>
+            ) : (
+              <Pressable onPress={toggleSearch} className="px-1 py-1">
+                <Text className="text-base font-medium text-gray-900">Cancel</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+
+        {/* photo count */}
+        {!isSearching && (
+          <Text className="text-xs text-gray-400 mt-0.5">
+            {photos.length} {photos.length === 1 ? 'photo' : 'photos'}
+          </Text>
+        )}
+      </View>
+
+      {/* photo grid */}
       <FlatList
         data={photos}
         numColumns={numColumns}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingHorizontal: 2.5 }}
+        keyExtractor={(item) => item.photo_id}
+        contentContainerStyle={{ paddingHorizontal: 2.5, paddingTop: 2 }}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => {
-          const totalHorizontalPadding = 2 * 2;
-          const size = (Dimensions.get('window').width - totalHorizontalPadding) / numColumns - 4;
-          return (
-            <View className="m-0.5 overflow-hidden">
-              <Image
-                source={{ uri: item.uri }}
-                style={{
-                  width: size,
-                  height: size,
-                }}
-                contentFit="cover"
-              />
-            </View>
-          );
-        }}
+        renderItem={renderPhotoItem}
       />
+
+      <PhotoViewer 
+        visible={!!selectedPhoto} 
+        photo={selectedPhoto} 
+        onClose={() => setSelectedPhoto(null)} 
+      />
+
+      {/* + button */}
+      <FloatingMenu 
+        menuAnim={menuAnim} 
+        appendPhoto={appendPhoto}
+      />      
     </View>
   );
 }
