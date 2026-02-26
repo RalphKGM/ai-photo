@@ -1,6 +1,7 @@
 import { getCompressedImageBuffer, computePhash } from '../utils/compressImage.js';
 import { describeImage } from './ai/describeImage.js';
 import { generateEmbedding } from './ai/generateEmbedding.js';
+import { enrichTagsWithConceptNet } from './conceptEnrichment.js';
 
 // Phrases that indicate the AI refused or failed to analyze the image
 const AI_REFUSAL_PHRASES = [
@@ -116,11 +117,12 @@ export const processImage = async (user, supabase, image, device_asset_id, manua
             break;
         } catch (err) {
             lastError = err;
-            if (attempt === 1 && (err.message.startsWith('AI_REFUSED') || err.message.startsWith('AI_INVALID'))) {
-                console.warn(`Attempt ${attempt} failed (${err.message}), retrying...`);
-                continue;
+            const isAIFailure = err.message.startsWith('AI_REFUSED') || err.message.startsWith('AI_INVALID');
+            if (isAIFailure) {
+                console.warn(`Attempt ${attempt} failed (${err.message})${attempt === 1 ? ', retrying...' : ', giving up'}`);
+                continue; // Let loop exhaust, then fall through to needs_reprocessing save
             }
-            throw err; // Non-AI errors (network, credits) — don't retry
+            throw err; // Non-AI errors (network, credits) — fail fast
         }
     }
 
@@ -153,8 +155,8 @@ export const processImage = async (user, supabase, image, device_asset_id, manua
 
     let { literal, descriptive, tags } = parsed;
 
-    // Enrich tags with capability keywords
-    tags = enrichTags(tags.toLowerCase());
+    // Enrich tags with ConceptNet (falls back gracefully if API is down)
+    tags = await enrichTagsWithConceptNet(supabase, tags.toLowerCase());
 
     if (manualDescription && manualDescription.trim()) {
         descriptive = `${descriptive} User note: ${manualDescription.trim()}`;
