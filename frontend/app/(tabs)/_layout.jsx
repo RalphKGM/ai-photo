@@ -9,11 +9,7 @@ export default function TabsLayout() {
   const screenHeight = Dimensions.get('window').height;
   const headerHeight = Math.max(125, Math.min(150, screenHeight * 0.12));
   const headerPaddingTop = Math.max(16, Math.min(40, screenHeight * 0.04)) + insets.top;
-/*
-  headerTitle: 'Photos',
-  headerTitleAlign: 'left',
-  headerTitleStyle: { fontSize: 28, fontWeight: 'bold', marginLeft: 0, marginTop: 12 },
-*/
+
   return (
     <>
       <StatusBar style="dark" />

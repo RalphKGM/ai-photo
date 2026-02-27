@@ -4,6 +4,7 @@ import { processImageController } from '../controller/processImageController.js'
 import { batchProcessImagesController } from '../controller/batchProcessImagesController.js';
 import { deletePhotoController } from '../controller/deletePhotoController.js';
 import { getPhotoController } from '../controller/getPhotoController.js';
+import { reprocessImageController } from '../controller/reprocessImageController.js';
 
 const router = express.Router();
 
@@ -17,5 +18,6 @@ router.post('/image', upload.single('image'), processImageController);
 router.post('/images/batch', upload.array('images', 50), batchProcessImagesController);
 router.delete('/photo/:photoId', deletePhotoController);
 router.get('/photo/:id', getPhotoController);
+router.post('/photo/:id/reprocess', upload.single('image'), reprocessImageController);
 
 export default router;
