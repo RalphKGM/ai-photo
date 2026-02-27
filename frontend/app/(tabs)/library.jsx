@@ -4,10 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
 import FloatingMenu from '../../components/FloatingMenu.jsx';
 import PhotoItem from '../../components/PhotoItem.jsx';
-import { getPhotos, getPhotoLocalURI, deletePhoto } from 'service/photoService.js';
+import { getPhotos, getPhotoLocalURI } from 'service/photoService.js';
 import PhotoViewer from '../../components/PhotoViewer.jsx';
 import { usePhotoContext } from 'context/PhotoContext.jsx';
-import { getCachedPhotos, setCachedPhotos, removePhotoFromCache } from '../../service/cacheService.js';
 
 const numColumns = 4;
 
@@ -18,7 +17,6 @@ export default function Library() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPhoto, setSelectedPhoto] = useState(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
     const allPhotosRef = useRef([]);
 
     const menuAnim = useRef(new Animated.Value(0)).current;
@@ -28,15 +26,15 @@ export default function Library() {
         const withUris = await Promise.all(
             list.map(async (photo) => {
                 if (photo.uri) return photo;
-                // Skip photos with no device_asset_id — they were saved without one
-                if (!photo.device_asset_id || photo.device_asset_id === "null") return null;
-                try {
-                    const uri = await getPhotoLocalURI(photo.device_asset_id);
-                    return { ...photo, uri };
-                } catch (error) {
-                    console.warn(`Device asset not found for ${photo.device_asset_id}`);
-                    return null;
+                if (photo.device_asset_id) {
+                    try {
+                        const uri = await getPhotoLocalURI(photo.device_asset_id);
+                        return { ...photo, uri };
+                    } catch (error) {
+                        console.warn(`Device asset not found for ${photo.device_asset_id}`);
+                    }
                 }
+                return photo;
             })
         );
         return withUris.filter(Boolean);
@@ -53,7 +51,6 @@ export default function Library() {
             .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
         allPhotosRef.current = sorted;
         setPhotos(sorted);
-        await setCachedPhotos(sorted);
     };
 
     const handleRefresh = async () => {
@@ -62,35 +59,26 @@ export default function Library() {
         setIsRefreshing(false);
     };
 
-    useEffect(() => {
-        const init = async () => {
-            // Load cached photos instantly so UI isn't empty on open
-            const cached = await getCachedPhotos();
-            if (cached && cached.length > 0) {
-                setPhotos(cached);
-                allPhotosRef.current = cached;
-            }
-            await handleGetPhotos();
-        };
-        init();
-    }, []);
+    useEffect(() => { handleGetPhotos(); }, []);
 
-    const handleSearch = async () => {
-        try {
-            if (!searchQuery || searchQuery.trim() === '') {
-                setPhotos(allPhotosRef.current);
-                return;
-            }
-
-            const assets = await getPhotos(searchQuery.trim());
-
-            const resolved = await resolveUris(assets);
-
-            setPhotos(resolved);
-        } catch (e) {
-            console.error('Search error', e);
+const handleSearch = async () => {
+    try {
+        if (!searchQuery || searchQuery.trim() === '') {
+            setPhotos(allPhotosRef.current);
+            return;
         }
-    };
+
+        const assets = await getPhotos(searchQuery.trim());
+        console.log('assets returned:', assets?.length, JSON.stringify(assets?.[0]));
+        
+        const resolved = await resolveUris(assets);
+        console.log('resolved:', resolved?.length, 'first uri:', resolved?.[0]?.uri);
+        
+        setPhotos(resolved);
+    } catch (e) {
+        console.error('Search error', e);
+    }
+};
 
     const handlePressPhoto = useCallback((item) => {
         setSelectedPhoto(item);
@@ -185,11 +173,10 @@ export default function Library() {
                 )}
             </View>
 
-
             <FlatList
                 data={photos}
                 numColumns={numColumns}
-                keyExtractor={(item) => item.id ?? item.device_asset_id ?? item.uri}
+                keyExtractor={(item) => item.id}
                 contentContainerStyle={{ paddingHorizontal: 2.5, paddingTop: 2 }}
                 showsVerticalScrollIndicator={false}
                 renderItem={renderPhotoItem}
@@ -199,17 +186,6 @@ export default function Library() {
                 visible={!!selectedPhoto}
                 photo={selectedPhoto}
                 onClose={() => setSelectedPhoto(null)}
-                onDelete={async (deletedId) => {
-                    try {
-                        setIsDeletingPhoto(true);
-                        setPhotos(prev => prev.filter(p => p.id !== deletedId));
-                        allPhotosRef.current = allPhotosRef.current.filter(p => p.id !== deletedId);
-                        await removePhotoFromCache(deletedId);
-                        setSelectedPhoto(null);
-                    } finally {
-                        setIsDeletingPhoto(false);
-                    }
-                }}
             />
 
             <FloatingMenu
