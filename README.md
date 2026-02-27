@@ -3,6 +3,8 @@
 
 Search your photos using natural language. Upload a photo, and Akashic's AI will analyze it — then find it later by searching "sunset at the beach" or "my dog playing outside."
 
+**[Public Documentation](https://docs.google.com/document/d/1wNnEaaiGcxZ6G3pjweAR8vmAk93IGqtH5G9dkC9pots/edit?usp=sharing)**
+
 ---
 
 ## 🚀 Tech Stack
