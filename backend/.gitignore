@@ -18,3 +18,7 @@ Thumbs.db
 # dist
 dist/
 build/
+
+# Bulk upload
+bulk_photos/
+bulk_upload.js
