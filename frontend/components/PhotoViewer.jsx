@@ -56,7 +56,6 @@ export default function PhotoViewer({ visible, photo, onClose, onDelete }) {
 
     if (!visible || !photo) return null;
 
-    // PhotoItem passes { item, uri } — unwrap if needed
     const photoData = photo.item ? { ...photo.item, uri: photo.uri } : photo;
 
     const tags = photoData.tags
@@ -67,7 +66,6 @@ export default function PhotoViewer({ visible, photo, onClose, onDelete }) {
         <Modal visible={visible} transparent={false} onRequestClose={onClose}>
             <View className="flex-1 bg-black">
 
-                {/* Photo */}
                 <View className="flex-1 justify-center items-center">
                     {photoData.uri && (
                         <Image
@@ -79,7 +77,6 @@ export default function PhotoViewer({ visible, photo, onClose, onDelete }) {
                     )}
                 </View>
 
-                {/* Top bar */}
                 <View className="absolute top-0 left-0 right-0 flex-row justify-between items-center pt-14 px-5 z-50">
                     <Pressable
                         onPress={onClose}
@@ -89,7 +86,6 @@ export default function PhotoViewer({ visible, photo, onClose, onDelete }) {
                     </Pressable>
 
                     <View className="flex-row items-center gap-2">
-                        {/* Details button — only show if photo has AI data */}
                         {(photoData.descriptive || photoData.literal || photoData.tags) && (
                             <Pressable
                                 onPress={() => setShowDetails(true)}
@@ -100,7 +96,6 @@ export default function PhotoViewer({ visible, photo, onClose, onDelete }) {
                             </Pressable>
                         )}
 
-                        {/* Delete button */}
                         <Pressable
                             onPress={handleDelete}
                             disabled={deleting}
@@ -114,23 +109,18 @@ export default function PhotoViewer({ visible, photo, onClose, onDelete }) {
                     </View>
                 </View>
 
-                {/* Details bottom sheet */}
                 {showDetails && (
                     <View className="absolute inset-0 z-50">
-                        {/* Backdrop */}
                         <Pressable
                             className="absolute inset-0 bg-black/60"
                             onPress={() => setShowDetails(false)}
                         />
 
-                        {/* Sheet */}
                         <View className="absolute bottom-0 left-0 right-0 bg-neutral-950 rounded-t-3xl max-h-[70%]">
-                            {/* Handle */}
                             <View className="items-center pt-3 pb-2">
                                 <View className="w-10 h-1 bg-white/20 rounded-full" />
                             </View>
 
-                            {/* Header */}
                             <View className="flex-row justify-between items-center px-5 pb-3 border-b border-white/10">
                                 <Text className="text-white font-semibold text-base">Photo Details</Text>
                                 <Pressable onPress={() => setShowDetails(false)}>

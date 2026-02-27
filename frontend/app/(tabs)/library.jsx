@@ -4,10 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
 import FloatingMenu from '../../components/FloatingMenu.jsx';
 import PhotoItem from '../../components/PhotoItem.jsx';
-import { getPhotos, getPhotoLocalURI } from 'service/photoService.js';
+import { getPhotos, getPhotoLocalURI, deletePhoto } from 'service/photoService.js';
 import PhotoViewer from '../../components/PhotoViewer.jsx';
 import { usePhotoContext } from 'context/PhotoContext.jsx';
-import { setCachedPhotos, getCachedPhotos } from '../../service/cacheService.js';
+import { getCachedPhotos, setCachedPhotos, removePhotoFromCache } from '../../service/cacheService.js';
 
 const numColumns = 4;
 
@@ -18,6 +18,7 @@ export default function Library() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedPhoto, setSelectedPhoto] = useState(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
     const allPhotosRef = useRef([]);
 
     const menuAnim = useRef(new Animated.Value(0)).current;
@@ -184,6 +185,7 @@ export default function Library() {
                 )}
             </View>
 
+
             <FlatList
                 data={photos}
                 numColumns={numColumns}
@@ -197,10 +199,16 @@ export default function Library() {
                 visible={!!selectedPhoto}
                 photo={selectedPhoto}
                 onClose={() => setSelectedPhoto(null)}
-                onDelete={(deletedId) => {
-                    setPhotos(prev => prev.filter(p => p.id !== deletedId));
-                    allPhotosRef.current = allPhotosRef.current.filter(p => p.id !== deletedId);
-                    setSelectedPhoto(null);
+                onDelete={async (deletedId) => {
+                    try {
+                        setIsDeletingPhoto(true);
+                        setPhotos(prev => prev.filter(p => p.id !== deletedId));
+                        allPhotosRef.current = allPhotosRef.current.filter(p => p.id !== deletedId);
+                        await removePhotoFromCache(deletedId);
+                        setSelectedPhoto(null);
+                    } finally {
+                        setIsDeletingPhoto(false);
+                    }
                 }}
             />
 
