@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as MediaLibrary from 'expo-media-library';
 import * as ImagePicker from 'expo-image-picker';
 import { getSession } from './auth/authService';
@@ -27,16 +28,24 @@ export const takePhoto = async () => {
     formData.append('device_asset_id', photo.id);
 
     try {
-        const response = await fetch(`${API_URL}/api/image`, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'Content-Type': 'multipart/form-data',
-                'Authorization': `Bearer ${token}`
-            },
-        });
-        const data = await response.json();
-        return { id: data.photo?.id, uri: result.assets[0].uri };
+      const response = await fetch(`${API_URL}/api/image`, {
+        method: 'POST',
+        body: formData,
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`
+        },
+      });
+
+      const data = await response.json();
+      return {
+        asset_id: photo.id,
+        uri: result.assets[0].uri,
+        descriptive: data?.photo?.descriptive || null,
+        literal: data?.photo?.literal || null,
+        manual_description: data?.photo?.manual_description || null,
+        created_at: data?.photo?.created_at || null,
+      };
     } catch (error) {
         console.error("Upload failed", error);
         throw error;
@@ -49,7 +58,7 @@ export const processPhotos = async (photos) => {
     if (!photos || photos.length === 0) throw new Error("No photos selected");
 
     const assets = photos.map((photo) => {
-        const assetId = photo.assetId || photo.uri;
+        const assetId = Platform.OS === 'ios' ? photo.assetId : (photo.fileName ? photo.fileName.replace(/\.[^/.]+$/, '') : null);
         return { ...photo, resolvedAssetId: assetId };
     });
 
@@ -86,6 +95,13 @@ export const processPhotos = async (photos) => {
 
     const data = await response.json();
 
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to process photos');
+    }
+
+    return data;
+
+/* wait
     if (response.status === 409 || data.error === 'Duplicate image') {
         return { added: [], duplicates: assets.length };
     }
@@ -97,18 +113,19 @@ export const processPhotos = async (photos) => {
 
     if (assets.length === 1) {
         return {
-            added: [{ id: data.photo?.id, device_asset_id: assets[0].resolvedAssetId, uri: assets[0].uri }],
+            added: [{ id: data.photo?.id, uri: assets[0].uri }],
             duplicates: 0
         };
     }
-
     const successfulResults = data.results || [];
     const added = successfulResults.map(r => ({
         id: r.photo?.id,
         device_asset_id: assets[r.index].resolvedAssetId,
+        uri: assets[r.index].resolvedUri,
         uri: assets[r.index].uri,
     }));
     return { added, duplicates: assets.length - added.length };
+*/
 };
 
 export const getPhotos = async (query = '') => {
