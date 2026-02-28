@@ -16,7 +16,7 @@ export default function Library() {
   const { photos, setPhotos, appendPhoto } = usePhotoContext();
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [selectedIndex, setSelectedIndex] = useState(null);
   const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
 
   const menuAnim = useRef(new Animated.Value(0)).current;
@@ -94,9 +94,7 @@ export default function Library() {
     setPhotos(sorted);
     await setCachedPhotos(sorted);
   };
-  
-  //useEffect(() => { handleGetPhotos(); }, []);
-
+//useEffect(() => { handleGetPhotos(); }, []);
   useEffect(() => {
     if (!isSearching) {
       handleGetPhotos();
@@ -135,56 +133,66 @@ export default function Library() {
 
   const handlePressPhoto = useCallback((item) => {
     console.log('Photo pressed:', item.item.device_asset_id);
-    setSelectedPhoto(item);
-  }, []);
+    const index = photos.findIndex(
+      p => p.device_asset_id === item.item.device_asset_id
+    );
+    if (index !== -1) setSelectedIndex(index);
+  }, [photos]);
+
+  // photos array for PhotoViewer
+  const viewerPhotos = photos.map(photo => ({
+    item: photo,
+    uri: photo.uri ?? null,
+  }));
 
   const handleDeleteSelectedPhoto = useCallback(async () => {
-    if (!selectedPhoto?.item?.device_asset_id || isDeletingPhoto) return;
+    if (selectedIndex === null || isDeletingPhoto) return;
+
+    const photo = photos[selectedIndex];
+    if (!photo?.device_asset_id) return;
 
     try {
       setIsDeletingPhoto(true);
-      const deletedPhotoId = selectedPhoto.item.device_asset_id;
+      const deletedPhotoId = photo.device_asset_id;
 
       await deletePhoto(deletedPhotoId);
       setPhotos((prev) =>
-        prev.filter((photo) => photo.device_asset_id !== deletedPhotoId)
+        prev.filter((p) => p.device_asset_id !== deletedPhotoId)
       );
       await removePhotoFromCache(deletedPhotoId);
-      setSelectedPhoto(null);
+      setSelectedIndex(null);
     } catch (error) {
       console.error('Delete error:', error);
     } finally {
       setIsDeletingPhoto(false);
     }
-  }, [isDeletingPhoto, selectedPhoto, setPhotos]);
-  
+  }, [isDeletingPhoto, selectedIndex, photos, setPhotos]);
+
   const toggleSearch = () => {
     const toValue = isSearching ? 0 : 1;
     if (!isSearching) setIsSearching(true);
 
-    Animated.timing(searchAnim, { 
-      toValue: toValue, 
-      duration: 250, 
-      useNativeDriver: false 
+    Animated.timing(searchAnim, {
+      toValue: toValue,
+      duration: 250,
+      useNativeDriver: false
     }).start(() => {
-      if (toValue === 0) { 
-        setIsSearching(false); 
-        setSearchQuery(''); 
-        Keyboard.dismiss(); 
+      if (toValue === 0) {
+        setIsSearching(false);
+        setSearchQuery('');
+        Keyboard.dismiss();
       }
     });
   };
 
   const renderPhotoItem = useCallback(
     ({ item }) => (
-      <>
       <PhotoItem
         localUri={item.uri ?? null}
         numColumns={numColumns}
         onPress={handlePressPhoto}
         item={item}
       />
-      </>
     ),
     [handlePressPhoto]
   );
@@ -221,9 +229,7 @@ export default function Library() {
 
           <View className="flex-row items-center">
             {!isSearching ? (
-              <Pressable
-                onPress={toggleSearch}
-              >
+              <Pressable onPress={toggleSearch}>
                 <Ionicons name="search" size={20} color="#111" />
               </Pressable>
             ) : (
@@ -252,19 +258,20 @@ export default function Library() {
         renderItem={renderPhotoItem}
       />
 
-      <PhotoViewer 
-        visible={!!selectedPhoto} 
-        photo={selectedPhoto} 
-        onClose={() => setSelectedPhoto(null)} 
+      <PhotoViewer
+        visible={selectedIndex !== null}
+        photos={viewerPhotos}
+        initialIndex={selectedIndex ?? 0}
+        onClose={() => setSelectedIndex(null)}
         onDelete={handleDeleteSelectedPhoto}
         isDeleting={isDeletingPhoto}
       />
 
       {/* + button */}
-      <FloatingMenu 
-        menuAnim={menuAnim} 
+      <FloatingMenu
+        menuAnim={menuAnim}
         appendPhoto={appendPhoto}
-      />      
+      />
     </View>
   );
 }

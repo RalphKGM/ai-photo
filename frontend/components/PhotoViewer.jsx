@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
+import PagerView from 'react-native-pager-view';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -14,12 +15,21 @@ function TagPill({ tag }) {
   );
 }
 
-export default function PhotoViewer({ visible, photo, onClose, onDelete, isDeleting = false }) {
+export default function PhotoViewer({ visible, photos = [], initialIndex = 0, onClose, onDelete, isDeleting = false }) {
+  const pagerRef = useRef(null);
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const sheetAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
   const [sheetVisible, setSheetVisible] = useState(false);
+
+  const currentPhoto = photos?.[currentIndex];
+  const photoData = currentPhoto?.item ?? currentPhoto;
+  const tags = photoData?.tags
+    ? photoData.tags.split(',').map(t => t.trim()).filter(Boolean)
+    : [];
 
   const openSheet = () => {
     setSheetVisible(true);
@@ -55,6 +65,11 @@ export default function PhotoViewer({ visible, photo, onClose, onDelete, isDelet
 
   useEffect(() => {
     if (visible) {
+      setCurrentIndex(initialIndex);
+      setTimeout(() => {
+        pagerRef.current?.setPageWithoutAnimation(initialIndex);
+      }, 0);
+
       Animated.parallel([
         Animated.spring(scaleAnim, {
           toValue: 1,
@@ -75,15 +90,7 @@ export default function PhotoViewer({ visible, photo, onClose, onDelete, isDelet
       backdropAnim.setValue(0);
       setSheetVisible(false);
     }
-  }, [visible]);
-
-  if (!visible || !photo) return null;
-
-  const photoData = photo.item ?? photo;
-
-  const tags = photoData.tags
-    ? photoData.tags.split(',').map(t => t.trim()).filter(Boolean)
-    : [];
+  }, [visible, initialIndex]);
 
   const handleDelete = () => {
     Alert.alert(
@@ -100,37 +107,58 @@ export default function PhotoViewer({ visible, photo, onClose, onDelete, isDelet
     );
   };
 
+  if (!visible || !photos?.length) return null;
+
   return (
     <Modal visible={visible} transparent={false} animationType="fade" onRequestClose={onClose}>
       <StatusBar style="light" />
-      <View className="flex-1 bg-black justify-center items-center">
-
-        {/* Photo */}
-        {photo.uri && (
-          <Animated.View
-            style={{
-              width: '100%',
-              height: '100%',
-              opacity: opacityAnim,
-              transform: [{ scale: scaleAnim }],
+      <View className="flex-1 bg-black">
+        <Animated.View style={{ flex: 1, opacity: opacityAnim, transform: [{ scale: scaleAnim }] }}>
+          <PagerView
+            ref={pagerRef}
+            style={{ flex: 1 }}
+            initialPage={initialIndex}
+            onPageSelected={(e) => {
+              setCurrentIndex(e.nativeEvent.position);
+              if (sheetVisible) closeSheet();
             }}
           >
-            <Image
-              source={{ uri: photo.uri }}
-              style={{ width: '100%', height: '100%' }}
-              contentFit="contain"
-              cachePolicy="memory-disk"
-            />
-          </Animated.View>
-        )}
+            {photos.map((photo, index) => {
+              const uri = photo.uri ?? photo.item?.uri;
+              return (
+                <View
+                  key={photo.item?.device_asset_id ?? photo.device_asset_id ?? index}
+                  style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+                >
+                  {uri ? (
+                    <Image
+                      source={{ uri }}
+                      style={{ width: '100%', height: '100%' }}
+                      contentFit="contain"
+                      cachePolicy="memory-disk"
+                    />
+                  ) : (
+                    <ActivityIndicator size="large" color="white" />
+                  )}
+                </View>
+              );
+            })}
+          </PagerView>
+        </Animated.View>
 
-        {/* Back button */}
         <Pressable onPress={onClose} className="absolute top-14 left-4 z-50 flex-row items-center p-2">
           <Ionicons name="chevron-back" size={28} color="white" />
           <Text className="text-white text-base font-medium">Back</Text>
         </Pressable>
 
-        {/* Bottom actions */}
+        {photos.length > 1 && (
+          <View className="absolute top-14 right-4 z-50 bg-black/50 rounded-full px-3 py-1">
+            <Text className="text-white text-sm font-medium">
+              {currentIndex + 1} / {photos.length}
+            </Text>
+          </View>
+        )}
+
         <View className="absolute bottom-12 right-6 z-50 flex-row items-center gap-4">
           <Pressable onPress={openSheet} className="p-2">
             <Ionicons name="information-circle-outline" size={28} color="white" />
@@ -148,7 +176,6 @@ export default function PhotoViewer({ visible, photo, onClose, onDelete, isDelet
           </Pressable>
         </View>
 
-        {/* Bottom sheet */}
         {sheetVisible && (
           <>
             <Animated.View
@@ -172,14 +199,18 @@ export default function PhotoViewer({ visible, photo, onClose, onDelete, isDelet
                 </Pressable>
               </View>
 
-              <ScrollView className="px-5 pt-4" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-                {photoData.literal && (
+              <ScrollView
+                className="px-5 pt-4"
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 40 }}
+              >
+                {photoData?.literal && (
                   <View className="mb-4">
                     <Text className="text-black text-sm font-semibold tracking-wider mb-1">Literal</Text>
                     <Text className="text-gray-600 text-md leading-relaxed">{photoData.literal}</Text>
                   </View>
                 )}
-                {photoData.descriptive && (
+                {photoData?.descriptive && (
                   <View className="mb-4">
                     <Text className="text-black text-sm font-semibold tracking-wider mb-1">Descriptive</Text>
                     <Text className="text-gray-600 text-md leading-relaxed">{photoData.descriptive}</Text>
@@ -187,10 +218,11 @@ export default function PhotoViewer({ visible, photo, onClose, onDelete, isDelet
                 )}
                 <View className="mb-4">
                   <Text className="text-black text-xs font-semibold uppercase tracking-wider mb-1">Manual Description</Text>
-                  <Text className="text-gray-600 text-sm leading-relaxed">{photoData.manual_description ?? 'None'}</Text>
+                  <Text className="text-gray-600 text-sm leading-relaxed">
+                    {photoData?.manual_description ?? 'None'}
+                  </Text>
                 </View>
 
-                {/* Tags */}
                 {tags.length > 0 && (
                   <View className="mb-4">
                     <Text className="text-black text-xs font-semibold uppercase tracking-wider mb-2">Tags</Text>
