@@ -48,16 +48,28 @@ export const processPhotos = async (photos) => {
 
     if (!photos || photos.length === 0) throw new Error("No photos selected");
 
-    const assets = photos.map((photo) => {
-        const assetId = photo.assetId || photo.uri;
-        return { ...photo, resolvedAssetId: assetId };
-    });
+    const assets = await Promise.all(photos.map(async (photo) => {
+        if (photo.assetId) {
+            return { ...photo, resolvedAssetId: photo.assetId, resolvedUri: photo.uri };
+        }
+
+        try {
+            const savedAsset = await MediaLibrary.createAssetAsync(photo.uri);
+            const info = await MediaLibrary.getAssetInfoAsync(savedAsset.id);
+            const permanentUri = info.localUri || info.uri;
+            console.log('Android asset ID:', savedAsset.id, permanentUri);
+            return { ...photo, resolvedAssetId: savedAsset.id, resolvedUri: permanentUri };
+        } catch (e) {
+            console.warn('createAssetAsync failed:', e.message);
+            return { ...photo, resolvedAssetId: photo.uri, resolvedUri: photo.uri };
+        }
+    }));
 
     const formData = new FormData();
 
     if (assets.length === 1) {
         formData.append('image', {
-            uri: assets[0].uri,
+            uri: assets[0].uri, 
             name: 'photo.jpg',
             type: 'image/jpeg',
         });
@@ -65,7 +77,7 @@ export const processPhotos = async (photos) => {
     } else {
         assets.forEach((photo, index) => {
             formData.append('images', {
-                uri: photo.uri,
+                uri: photo.uri, 
                 name: `photo_${index}.jpg`,
                 type: 'image/jpeg',
             });
@@ -97,7 +109,7 @@ export const processPhotos = async (photos) => {
 
     if (assets.length === 1) {
         return {
-            added: [{ id: data.photo?.id, device_asset_id: assets[0].resolvedAssetId, uri: assets[0].uri }],
+            added: [{ id: data.photo?.id, device_asset_id: assets[0].resolvedAssetId, uri: assets[0].resolvedUri || assets[0].uri }],
             duplicates: 0
         };
     }
@@ -106,7 +118,7 @@ export const processPhotos = async (photos) => {
     const added = successfulResults.map(r => ({
         id: r.photo?.id,
         device_asset_id: assets[r.index].resolvedAssetId,
-        uri: assets[r.index].uri,
+        uri: assets[r.index].resolvedUri || assets[r.index].uri,
     }));
     return { added, duplicates: assets.length - added.length };
 };
@@ -138,11 +150,27 @@ export const getPhotos = async (query = '') => {
 };
 
 export const getPhotoLocalURI = async (photoId) => {
-    // if android uri
     if (photoId && (photoId.startsWith('file://') || photoId.startsWith('content://') || photoId.startsWith('ph://'))) {
         return photoId;
     }
-    // if ios
+
+    if (photoId && photoId.includes('.')) {
+        try {
+            const { assets } = await MediaLibrary.getAssetsAsync({
+                mediaType: MediaLibrary.MediaType.photo,
+                first: 200,
+                sortBy: MediaLibrary.SortBy.creationTime,
+            });
+            const match = assets.find(a => a.filename === photoId);
+            if (match) {
+                const info = await MediaLibrary.getAssetInfoAsync(match.id);
+                return info.localUri || info.uri;
+            }
+        } catch (e) {
+            console.warn('Filename lookup failed:', e.message);
+        }
+    }
+
     try {
         const assetInfo = await MediaLibrary.getAssetInfoAsync(photoId);
         return assetInfo.localUri || assetInfo.uri;
