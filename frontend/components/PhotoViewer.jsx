@@ -1,166 +1,211 @@
-import { useState } from 'react';
-import { Modal, View, Pressable, Text, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { Modal, View, Pressable, Animated, Text, ScrollView, Dimensions, Alert, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { deletePhoto } from 'service/photoService';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect, useRef, useState } from 'react';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 function TagPill({ tag }) {
-    return (
-        <View className="bg-white/10 border border-white/20 rounded-full px-3 py-1 mr-2 mb-2">
-            <Text className="text-white/80 text-xs">{tag}</Text>
-        </View>
-    );
+  return (
+    <View className="bg-gray-100 rounded-full px-3 py-1 mr-2 mb-2">
+      <Text className="text-gray-600 text-xs">{tag}</Text>
+    </View>
+  );
 }
 
-function Section({ title, content }) {
-    if (!content) return null;
-    return (
-        <View className="mb-5">
-            <Text className="text-white/40 text-xs font-medium uppercase tracking-widest mb-2">
-                {title}
-            </Text>
-            <Text className="text-white/90 text-sm leading-relaxed">{content}</Text>
-        </View>
+export default function PhotoViewer({ visible, photo, onClose, onDelete, isDeleting = false }) {
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const sheetAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const backdropAnim = useRef(new Animated.Value(0)).current;
+  const [sheetVisible, setSheetVisible] = useState(false);
+
+  const openSheet = () => {
+    setSheetVisible(true);
+    Animated.parallel([
+      Animated.spring(sheetAnim, {
+        toValue: 0,
+        tension: 65,
+        friction: 12,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const closeSheet = () => {
+    Animated.parallel([
+      Animated.timing(sheetAnim, {
+        toValue: SCREEN_HEIGHT,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setSheetVisible(false));
+  };
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 65,
+          friction: 10,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      scaleAnim.setValue(0.9);
+      opacityAnim.setValue(0);
+      sheetAnim.setValue(SCREEN_HEIGHT);
+      backdropAnim.setValue(0);
+      setSheetVisible(false);
+    }
+  }, [visible]);
+
+  if (!visible || !photo) return null;
+
+  const photoData = photo.item ?? photo;
+
+  const tags = photoData.tags
+    ? photoData.tags.split(',').map(t => t.trim()).filter(Boolean)
+    : [];
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Photo',
+      'This will remove the photo from your library. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: onDelete,
+        },
+      ]
     );
-}
+  };
 
-export default function PhotoViewer({ visible, photo, onClose, onDelete }) {
-    const [showDetails, setShowDetails] = useState(false);
-    const [deleting, setDeleting] = useState(false);
+  return (
+    <Modal visible={visible} transparent={false} animationType="fade" onRequestClose={onClose}>
+      <StatusBar style="light" />
+      <View className="flex-1 bg-black justify-center items-center">
 
-    const handleDelete = () => {
-        Alert.alert(
-            'Delete Photo',
-            'This will remove the photo from your library. This cannot be undone.',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            setDeleting(true);
-                            await deletePhoto(photoData.id);
-                            setDeleting(false);
-                            onClose();
-                            onDelete?.(photoData.id);
-                        } catch (err) {
-                            setDeleting(false);
-                            Alert.alert('Error', 'Failed to delete photo. Please try again.');
-                        }
-                    }
-                }
-            ]
-        );
-    };
+        {/* Photo */}
+        {photo.uri && (
+          <Animated.View
+            style={{
+              width: '100%',
+              height: '100%',
+              opacity: opacityAnim,
+              transform: [{ scale: scaleAnim }],
+            }}
+          >
+            <Image
+              source={{ uri: photo.uri }}
+              style={{ width: '100%', height: '100%' }}
+              contentFit="contain"
+              cachePolicy="memory-disk"
+            />
+          </Animated.View>
+        )}
 
-    if (!visible || !photo) return null;
+        {/* Back button */}
+        <Pressable onPress={onClose} className="absolute top-14 left-4 z-50 flex-row items-center p-2">
+          <Ionicons name="chevron-back" size={28} color="white" />
+          <Text className="text-white text-base font-medium">Back</Text>
+        </Pressable>
 
-    const photoData = photo.item ? { ...photo.item, uri: photo.uri } : photo;
+        {/* Bottom actions */}
+        <View className="absolute bottom-12 right-6 z-50 flex-row items-center gap-4">
+          <Pressable onPress={openSheet} className="p-2">
+            <Ionicons name="information-circle-outline" size={28} color="white" />
+          </Pressable>
+          <Pressable
+            onPress={handleDelete}
+            disabled={isDeleting}
+            className="p-2"
+            style={{ opacity: isDeleting ? 0.4 : 1 }}
+          >
+            {isDeleting
+              ? <ActivityIndicator size="small" color="white" />
+              : <Ionicons name="trash-outline" size={28} color="white" />
+            }
+          </Pressable>
+        </View>
 
-    const tags = photoData.tags
-        ? photoData.tags.split(',').map(t => t.trim()).filter(Boolean)
-        : [];
+        {/* Bottom sheet */}
+        {sheetVisible && (
+          <>
+            <Animated.View
+              style={{ opacity: backdropAnim }}
+              className="absolute inset-0 bg-black/60 z-50"
+            >
+              <Pressable className="flex-1" onPress={closeSheet} />
+            </Animated.View>
 
-    return (
-        <Modal visible={visible} transparent={false} onRequestClose={onClose}>
-            <View className="flex-1 bg-black">
+            <Animated.View
+              style={{
+                transform: [{ translateY: sheetAnim }],
+                height: SCREEN_HEIGHT * 0.5,
+              }}
+              className="absolute bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl"
+            >
+              <View className="flex-row items-center justify-between px-5 py-4 border-b border-gray-100">
+                <Text className="text-black text-lg font-semibold">Photo Info</Text>
+                <Pressable onPress={closeSheet}>
+                  <Ionicons name="close" size={22} color="black" />
+                </Pressable>
+              </View>
 
-                <View className="flex-1 justify-center items-center">
-                    {photoData.uri && (
-                        <Image
-                            source={{ uri: photoData.uri }}
-                            style={{ width: '100%', height: '100%' }}
-                            contentFit="contain"
-                            cachePolicy="memory-disk"
-                        />
-                    )}
-                </View>
-
-                <View className="absolute top-0 left-0 right-0 flex-row justify-between items-center pt-14 px-5 z-50">
-                    <Pressable
-                        onPress={onClose}
-                        className="p-2 bg-black/40 rounded-full"
-                    >
-                        <Ionicons name="close" size={24} color="white" />
-                    </Pressable>
-
-                    <View className="flex-row items-center gap-2">
-                        {(photoData.descriptive || photoData.literal || photoData.tags) && (
-                            <Pressable
-                                onPress={() => setShowDetails(true)}
-                                className="flex-row items-center gap-1.5 bg-black/40 rounded-full px-4 py-2"
-                            >
-                                <Ionicons name="information-circle-outline" size={16} color="white" />
-                                <Text className="text-white text-sm font-medium">Details</Text>
-                            </Pressable>
-                        )}
-
-                        <Pressable
-                            onPress={handleDelete}
-                            disabled={deleting}
-                            className="p-2 bg-black/40 rounded-full"
-                        >
-                            {deleting
-                                ? <ActivityIndicator size="small" color="white" />
-                                : <Ionicons name="trash-outline" size={22} color="#ff4444" />
-                            }
-                        </Pressable>
-                    </View>
-                </View>
-
-                {showDetails && (
-                    <View className="absolute inset-0 z-50">
-                        <Pressable
-                            className="absolute inset-0 bg-black/60"
-                            onPress={() => setShowDetails(false)}
-                        />
-
-                        <View className="absolute bottom-0 left-0 right-0 bg-neutral-950 rounded-t-3xl max-h-[70%]">
-                            <View className="items-center pt-3 pb-2">
-                                <View className="w-10 h-1 bg-white/20 rounded-full" />
-                            </View>
-
-                            <View className="flex-row justify-between items-center px-5 pb-3 border-b border-white/10">
-                                <Text className="text-white font-semibold text-base">Photo Details</Text>
-                                <Pressable onPress={() => setShowDetails(false)}>
-                                    <Ionicons name="close" size={20} color="rgba(255,255,255,0.5)" />
-                                </Pressable>
-                            </View>
-
-                            <ScrollView
-                                className="px-5 pt-4"
-                                showsVerticalScrollIndicator={false}
-                                contentContainerStyle={{ paddingBottom: 40 }}
-                            >
-                                <Section title="Description" content={photoData.descriptive} />
-                                <Section title="Visual Details" content={photoData.literal} />
-
-                                {tags.length > 0 && (
-                                    <View className="mb-5">
-                                        <Text className="text-white/40 text-xs font-medium uppercase tracking-widest mb-3">
-                                            Tags
-                                        </Text>
-                                        <View className="flex-row flex-wrap">
-                                            {tags.map((tag, i) => (
-                                                <TagPill key={i} tag={tag} />
-                                            ))}
-                                        </View>
-                                    </View>
-                                )}
-
-                                {photoData.needs_reprocessing && (
-                                    <View className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 mb-4">
-                                        <Text className="text-yellow-400 text-xs">
-                                            ⚠️ This photo hasn't been analyzed by AI yet.
-                                        </Text>
-                                    </View>
-                                )}
-                            </ScrollView>
-                        </View>
-                    </View>
+              <ScrollView className="px-5 pt-4" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+                {photoData.literal && (
+                  <View className="mb-4">
+                    <Text className="text-black text-sm font-semibold tracking-wider mb-1">Literal</Text>
+                    <Text className="text-gray-600 text-md leading-relaxed">{photoData.literal}</Text>
+                  </View>
                 )}
-            </View>
-        </Modal>
-    );
+                {photoData.descriptive && (
+                  <View className="mb-4">
+                    <Text className="text-black text-sm font-semibold tracking-wider mb-1">Descriptive</Text>
+                    <Text className="text-gray-600 text-md leading-relaxed">{photoData.descriptive}</Text>
+                  </View>
+                )}
+                <View className="mb-4">
+                  <Text className="text-black text-xs font-semibold uppercase tracking-wider mb-1">Manual Description</Text>
+                  <Text className="text-gray-600 text-sm leading-relaxed">{photoData.manual_description ?? 'None'}</Text>
+                </View>
+
+                {/* Tags */}
+                {tags.length > 0 && (
+                  <View className="mb-4">
+                    <Text className="text-black text-xs font-semibold uppercase tracking-wider mb-2">Tags</Text>
+                    <View className="flex-row flex-wrap">
+                      {tags.map((tag, i) => (
+                        <TagPill key={i} tag={tag} />
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </ScrollView>
+            </Animated.View>
+          </>
+        )}
+      </View>
+    </Modal>
+  );
 }
