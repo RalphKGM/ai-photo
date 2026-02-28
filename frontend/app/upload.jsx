@@ -5,11 +5,12 @@ import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { processPhotos } from 'service/photoService';
 import { usePhotoContext } from 'context/PhotoContext';
+import { addPhotoToCache } from 'service/cacheService';
 
 export default function Upload() {
   const router = useRouter();
   const { appendPhoto } = usePhotoContext();
-  const [uploadState, setUploadState] = useState({ loading: false, count: 0, done: false, duplicates: 0, added: 0 });
+  const [uploadState, setUploadState] = useState({ loading: false, count: 0, done: false });
 
   const handleSelectFromGallery = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -19,22 +20,41 @@ export default function Upload() {
     });
 
     if (!result.canceled) {
-      setUploadState({ loading: true, count: result.assets.length, done: false, duplicates: 0, added: 0 });
-
+      //setUploadState({ loading: true, count: result.assets.length, done: false });
       try {
-        const { added } = await processPhotos(result.assets);
+        const res = await processPhotos(result.assets);
+        console.log(res)
+        if (!res) {
+          console.error('Processing returned no response', res);
+          return;
+        }
 
-        added.forEach((asset) => {
-          appendPhoto({ id: asset.id, device_asset_id: asset.device_asset_id, uri: asset.uri });
-        });
+        // For batch API, backend returns `failed` count when something went wrong
+        if (res.failed && res.failed > 0) {
+          console.error('Some images failed to process', res);
+          return;
+        }
+        console.log('Res', res)
+        // Only append locally when processing succeeded
+        //console.log('Result', result.assets)
+        const newPhotos = result.assets.map((asset) => ({
+            device_asset_id: res.photo.device_asset_id,
+            uri: asset.uri,
+            descriptive: res.photo.descriptive || null,
+            literal: res.photo.literal || null,
+            manual_description: res.photo.manual_description || null,
+            id: res.photo.id || null,
+            created_at: res.photo.created_at || null,
+        }));
 
-        const duplicates = result.assets.length - added.length;
-        setUploadState({ loading: false, count: result.assets.length, done: true, duplicates, added: added.length });
+        newPhotos.forEach((photo) => appendPhoto(photo));
+        await addPhotoToCache(newPhotos);
 
+        //setUploadState({ loading: false, count: result.assets.length, done: true, });
         setTimeout(() => router.back(), 1800);
       } catch (e) {
         console.error('Upload failed', e);
-        setUploadState({ loading: false, count: 0, done: false, duplicates: 0, added: 0 });
+        //setUploadState({ loading: false, count: 0, done: false });
       }
     }
   };
