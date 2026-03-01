@@ -23,10 +23,12 @@ export const processImage = async (user, supabase, image, device_asset_id) => {
     const literalStart = description.indexOf('[LITERAL]');
     const descriptiveStart = description.indexOf('[DESCRIPTIVE]');
     const tagsStart = description.indexOf('[TAGS]');
+    const categoryStart = description.indexOf('[CATEGORY]');
 
     const literal = description.substring(literalStart + 9, descriptiveStart).trim();
     const descriptive = description.substring(descriptiveStart + 13, tagsStart).trim();
-    const tags = description.substring(tagsStart + 6).trim().toLowerCase();
+    const tags = description.substring(tagsStart + 6, categoryStart).trim().toLowerCase();
+    const category = description.substring(categoryStart + 10).trim().toLowerCase();
 
     const [descriptiveEmbedding, literalEmbedding] = await Promise.all([
         generateEmbedding(descriptive),
@@ -48,6 +50,7 @@ export const processImage = async (user, supabase, image, device_asset_id) => {
             descriptive,
             literal,
             tags,
+            category,
             descriptive_embedding: descriptiveEmbedding,
             literal_embedding: literalEmbedding,
         })

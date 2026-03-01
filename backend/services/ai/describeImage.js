@@ -14,10 +14,11 @@ RULES:
 - Use complete sentences for descriptions
 - Use comma-separated keywords for tags
 - Identify specific characters, franchises, landmarks, species, or locations by name when recognizable
+- For [CATEGORY]: only assign a category if the main subject of the image clearly and directly belongs to it. If the image shows an object, device, text, screenshot, or anything that does not fit Food, Nature, Animals, People, or Travel — leave [CATEGORY] completely empty.
 
 FORMAT:
 [LITERAL]
-<2-3 sentences describing exactly what you see — be highly specific about colors, textures, ingredients>
+<2-3 sentences describing exactly what you see — be highly specific about colors, textures, ingredients, animal breed>
 
 [DESCRIPTIVE]
 <2-3 sentences describing context, setting, mood, or significance — mention the dish name explicitly>
@@ -41,7 +42,19 @@ TAG CATEGORIES (include all relevant ones):
 - Activities: gaming, eating, working, studying, exercising, socializing, traveling
 - Mood: happy, peaceful, energetic, calm, exciting, melancholic
 - Colors: vibrant, muted, colorful, monochrome, warm-tones, cool-tones
-- Filipino context: philippines, manila, filipino-food, jeepney, festival`;
+- Filipino context: philippines, manila, filipino-food, jeepney, festival
+
+[CATEGORY]
+<comma-separated list of ONLY strongly applicable categories. Omit any category that does not clearly apply. A single photo CAN have multiple categories. It is perfectly fine to return an empty value here if none of the 5 categories fit.
+
+Categories and when to use them:
+- Food → main subject is a recognizable food item or dish
+- Nature → main subject is a landscape, plant, sky, body of water, or natural environment
+- Animals → main subject is an animal or creature of any kind
+- People → main subject is a person or group of people (real, not illustrated)
+- Travel → main subject is a recognizable landmark, tourist destination, or travel location
+- None
+`;
 
 export const describeImage = async (imageBuffer) => {
     const start = Date.now();
