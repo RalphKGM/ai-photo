@@ -39,15 +39,17 @@ export const takePhoto = async () => {
 
       const data = await response.json();
       return {
-        asset_id: photo.id,
+        device_asset_id: photo.device_asset_id,
         uri: result.assets[0].uri,
-        descriptive: data?.photo?.descriptive || null,
-        literal: data?.photo?.literal || null,
-        manual_description: data?.photo?.manual_description || null,
-        created_at: data?.photo?.created_at || null,
+        descriptive: data.photo?.descriptive || null,
+        literal: data.photo?.literal || null,
+        manual_description: data.photo?.manual_description || null,
+        id: data.photo?.id || null,
+        category: data.photo?.category,
+        created_at: data.photo?.created_at || null,
       };
     } catch (error) {
-        console.error("Upload failed", error);
+        console.log("Upload failed", error);
         throw error;
     }
 };
