@@ -64,7 +64,7 @@ export const searchImage = async (user, supabase, query) => {
     if (!query || query.trim() === '') {
         const { data, error } = await supabase
             .from('photo')
-            .select('id, device_asset_id, descriptive, literal, tags, created_at')
+            .select('id, device_asset_id, descriptive, literal, tags, created_at, category')
             .eq('user_id', user.id)
             .order('created_at', { ascending: true });
 
