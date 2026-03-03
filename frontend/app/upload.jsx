@@ -1,4 +1,4 @@
-import { View, Text, Pressable, ScrollView, ActivityIndicator, Animated } from 'react-native';
+import { View, Text, Pressable, ScrollView, ActivityIndicator, Animated, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -10,6 +10,8 @@ import { addPhotoToCache } from 'service/cacheService';
 export default function Upload() {
   const router = useRouter();
   const { appendPhoto, uploadProgress, setUploadProgress } = usePhotoContext();
+  const [duplicateWarning, setDuplicateWarning] = useState(null);
+  const [selectedAssets, setSelectedAssets] = useState([]);
 
   const progressAnim = useRef(new Animated.Value(0)).current;
 
@@ -33,44 +35,61 @@ export default function Upload() {
     });
 
     if (!result.canceled) {
-      const total = result.assets.length;
-      setUploadProgress({ current: 0, total, done: false });
-      progressAnim.setValue(0);
+      // populate selection preview (do not upload yet)
+      setSelectedAssets(result.assets || []);
+    }
+  };
 
-      try {
-        for (let i = 0; i < result.assets.length; i++) {
-          const asset = result.assets[i];
+  const removeSelected = (uri) => {
+    setSelectedAssets((prev) => prev.filter((a) => a.uri !== uri));
+  };
 
-          const res = await processPhotos([asset]);
+  const uploadSelected = async () => {
+    if (!selectedAssets || selectedAssets.length === 0) return;
+    const total = selectedAssets.length;
+    setDuplicateWarning(null);
+    setUploadProgress({ current: 0, total, done: false });
+    progressAnim.setValue(0);
 
-          if (res?.photo) {
-            const newPhoto = {
-              device_asset_id: res.photo.device_asset_id,
-              uri: asset.uri,
-              descriptive: res.photo.descriptive || null,
-              literal: res.photo.literal || null,
-              manual_description: res.photo.manual_description || null,
-              id: res.photo.id || null,
-              category: res.photo.category,
-              created_at: res.photo.created_at || null,
-            };
-            appendPhoto(newPhoto);
-            await addPhotoToCache([newPhoto]);
-          }
+    try {
+      for (let i = 0; i < selectedAssets.length; i++) {
+        const asset = selectedAssets[i];
+        const res = await processPhotos([asset]);
 
-          setUploadProgress({ current: i + 1, total, done: false });
+        if (res?.duplicate) {
+          setDuplicateWarning((prev) => ({
+            count: prev?.count ? prev.count + 1 : 1,
+            items: prev?.items ? [...prev.items, asset.uri] : [asset.uri],
+          }));
         }
 
-        setUploadProgress({ current: total, total, done: true });
+        if (res?.photo) {
+          const newPhoto = {
+            device_asset_id: res.photo.device_asset_id,
+            uri: asset.uri,
+            descriptive: res.photo.descriptive || null,
+            literal: res.photo.literal || null,
+            manual_description: res.photo.manual_description || null,
+            id: res.photo.id || null,
+            category: res.photo.category,
+            created_at: res.photo.created_at || null,
+          };
+          appendPhoto(newPhoto);
+          await addPhotoToCache([newPhoto]);
+        }
 
-        setTimeout(() => {
-          setUploadProgress(null);
-          router.back();
-        }, 1500);
-      } catch (e) {
-        console.log('Upload failed', e);
-        setUploadProgress(null);
+        setUploadProgress({ current: i + 1, total, done: false });
       }
+
+      setUploadProgress({ current: total, total, done: true });
+
+      setTimeout(() => {
+        setUploadProgress(null);
+        setSelectedAssets([]);
+      }, 1500);
+    } catch (e) {
+      console.log('Upload failed', e);
+      setUploadProgress(null);
     }
   };
 
@@ -118,6 +137,58 @@ export default function Upload() {
           </Pressable>
         )}
 
+        {/* selected preview (before upload) */}
+        {selectedAssets.length > 0 && (
+          <View className="mb-4">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 4 }}>
+              {selectedAssets.map((a) => (
+                <View key={a.uri} style={{ width: 90, height: 140, marginRight: 12 }}>
+                  <Image source={{ uri: a.uri }} style={{ width: 90, height: 140, borderRadius: 12, backgroundColor: '#eee' }} />
+                  <Pressable
+                    onPress={() => removeSelected(a.uri)}
+                    style={{ position: 'absolute', right: 6, top: 6, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 12, padding: 4 }}
+                  >
+                    <Ionicons name="close" size={14} color="white" />
+                  </Pressable>
+                </View>
+              ))}
+            </ScrollView>
+
+            <View className="flex-row mt-3 px-1">
+              <Pressable onPress={uploadSelected} className="flex-1 bg-[#3B5BDB] rounded-2xl p-3 mr-3 items-center justify-center active:opacity-80">
+                <Text className="text-white font-semibold">Upload Selected ({selectedAssets.length})</Text>
+              </Pressable>
+              <Pressable onPress={() => setSelectedAssets([])} className="px-4 py-3 rounded-2xl bg-gray-200 items-center justify-center">
+                <Text className="text-gray-700">Clear</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        {/* duplicate warning card */}
+        {duplicateWarning && (
+          <View className="mb-4 p-5 bg-[#FFF7ED] rounded-2xl">
+            <View className="flex-row items-center mb-4">
+              <View className="w-10 h-10 rounded-full bg-[#F97316] items-center justify-center mr-3">
+                <Ionicons name="alert-circle" size={20} color="white" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-[#B45309] font-bold text-base">
+                  Duplicate photo detected
+                </Text>
+                <Text className="text-[#D97706] text-sm mt-0.5">
+                  One or more selected photos already exist in your library
+                </Text>
+              </View>
+              <Text className="text-[#B45309] font-bold text-base ml-2">
+                {duplicateWarning.count}
+              </Text>
+            </View>
+
+
+          </View>
+        )}
+
         {/* upload progress card */}
         {isUploading && (
           <View className="mb-4 p-5 bg-[#F0F4FF] rounded-2xl">
@@ -159,18 +230,7 @@ export default function Upload() {
               </Text>
             </View>
 
-            <View className="flex-row flex-wrap gap-1.5 mt-4">
-              {Array.from({ length: uploadProgress.total }).map((_, i) => (
-                <View
-                  key={i}
-                  className={`h-2 w-2 rounded-full ${
-                    i < uploadProgress.current
-                      ? 'bg-[#3B5BDB]'
-                      : 'bg-[#D9E2FF]'
-                  }`}
-                />
-              ))}
-            </View>
+            
           </View>
         )}
         

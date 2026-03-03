@@ -97,8 +97,12 @@ export const processPhotos = async (photos) => {
 
     const data = await response.json();
 
+    if (response.status === 409 || data?.error === 'Duplicate image') {
+        return { duplicate: true, error: data.error || 'Duplicate image' };
+    }
+
     if (!response.ok) {
-      throw new Error(data.error || 'Failed to process photos');
+        throw new Error(data.error || 'Failed to process photos');
     }
 
     return data;
@@ -151,7 +155,7 @@ export const getPhotos = async (query = '') => {
             throw new Error(data.error || 'Failed to load photos');
         }
     } catch (error) {
-        console.error("getPhotos Service Error:", error.message);
+        console.log("getPhotos Service Error:", error);
         throw error;
     }
 };
