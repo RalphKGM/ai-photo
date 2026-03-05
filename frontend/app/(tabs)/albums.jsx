@@ -79,7 +79,7 @@ export default function Albums() {
       <View className="flex-1 bg-white">
         {/* Header */}
         <View className="px-4 pt-2 pb-1 border-b border-gray-200/60">
-          <Text className="text-[34px] font-bold text-black tracking-tight">Albums</Text>
+          <Text className="text-3xl font-bold text-black tracking-tight">Albums</Text>
         </View>
 
         {/* Section title */}
