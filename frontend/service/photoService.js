@@ -46,6 +46,7 @@ export const takePhoto = async () => {
         manual_description: data.photo?.manual_description || null,
         id: data.photo?.id || null,
         category: data.photo?.category,
+        tags: data.photo?.tags,
         created_at: data.photo?.created_at || null,
       };
     } catch (error) {

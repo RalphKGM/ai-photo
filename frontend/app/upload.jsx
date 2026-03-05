@@ -72,6 +72,7 @@ export default function Upload() {
             manual_description: res.photo.manual_description || null,
             id: res.photo.id || null,
             category: res.photo.category,
+            tags: res.photo.tags,
             created_at: res.photo.created_at || null,
           };
           appendPhoto(newPhoto);
