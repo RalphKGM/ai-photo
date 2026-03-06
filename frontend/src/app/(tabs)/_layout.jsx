@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Dimensions } from 'react-native';
-import { useThemeContext } from 'context/ThemeContext.jsx';
+import { useThemeContext } from '../../context/ThemeContext.jsx';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();

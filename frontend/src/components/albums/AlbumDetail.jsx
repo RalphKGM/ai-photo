@@ -9,12 +9,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { deletePhoto } from 'service/photoService';
-import { removePhotoFromCache } from '../../service/cacheService';
-import { useThemeContext } from 'context/ThemeContext.jsx';
-import { getThemeColors } from 'theme/appColors.js';
-import PhotoViewer from '../../components/PhotoViewer';
-import PhotoItem from '../../components/PhotoItem';
+import { deletePhoto } from '../../service/photoService.js';
+import { removePhotoFromCache } from '../../service/cacheService.js';
+import { useThemeContext } from '../../context/ThemeContext.jsx';
+import { getThemeColors } from '../../theme/appColors.js';
+import PhotoViewer from '../../components/PhotoViewer.jsx';
+import PhotoItem from '../../components/PhotoItem.jsx';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_COLUMNS = 4;

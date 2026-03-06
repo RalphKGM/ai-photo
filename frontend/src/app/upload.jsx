@@ -3,11 +3,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useState, useEffect, useRef } from 'react';
-import { processPhotos } from 'service/photoService';
-import { usePhotoContext } from 'context/PhotoContext';
-import { useThemeContext } from 'context/ThemeContext.jsx';
-import { getThemeColors } from 'theme/appColors.js';
-import { addPhotoToCache } from 'service/cacheService';
+import { processPhotos } from '../service/photoService';
+import { usePhotoContext } from '../context/PhotoContext';
+import { useThemeContext } from '../context/ThemeContext.jsx';
+import { getThemeColors } from '../theme/appColors.js';
+import { addPhotoToCache } from '../service/cacheService.js';
 
 export default function Upload() {
   const router = useRouter();

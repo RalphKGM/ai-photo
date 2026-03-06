@@ -2,7 +2,7 @@ import { memo, useCallback } from 'react';
 import { View, Dimensions, Pressable, Text } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useThemeContext } from 'context/ThemeContext.jsx';
+import { useThemeContext } from '../context/ThemeContext.jsx';
 
 const { width: windowWidth } = Dimensions.get('window');
 

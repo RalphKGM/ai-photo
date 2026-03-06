@@ -7,9 +7,9 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { usePhotoContext } from 'context/PhotoContext.jsx';
-import { useThemeContext } from 'context/ThemeContext.jsx';
-import { getThemeColors } from 'theme/appColors.js';
+import { usePhotoContext } from '../../context/PhotoContext.jsx';
+import { useThemeContext } from '../../context/ThemeContext.jsx';
+import { getThemeColors } from '../../theme/appColors.js';
 import AlbumDetail from '../../components/albums/AlbumDetail.jsx';
 import AlbumCard from '../../components/albums/AlbumCard.jsx';
 

@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { View, Text, TextInput, Pressable, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { signup } from '../../service/auth/authService.js';
-import { useThemeContext } from 'context/ThemeContext.jsx';
-import { getThemeColors } from 'theme/appColors.js';
+import { useThemeContext } from '../../context/ThemeContext.jsx';
+import { getThemeColors } from '../../theme/appColors.js';
 
 export default function Signup() {
   const { isDarkMode } = useThemeContext();

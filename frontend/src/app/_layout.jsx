@@ -1,9 +1,9 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { supabase } from '../config/supabase.js';
-import { PhotoProvider } from 'context/PhotoContext.jsx';
-import { ThemeProvider, useThemeContext } from 'context/ThemeContext.jsx';
-import '../global.css';
+import { PhotoProvider } from '../context/PhotoContext.jsx';
+import { ThemeProvider, useThemeContext } from '../context/ThemeContext.jsx';
+import '../../global.css';
 
 function RootNavigator() {
   const [isLoggedIn, setIsLoggedIn] = useState(null);

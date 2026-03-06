@@ -5,11 +5,11 @@ import * as MediaLibrary from 'expo-media-library';
 import { useRouter } from 'expo-router';
 import FloatingMenu from '../../components/FloatingMenu.jsx';
 import PhotoItem from '../../components/PhotoItem.jsx';
-import { getPhotos, getPhotoLocalURI, deletePhoto } from 'service/photoService.js';
+import { getPhotos, getPhotoLocalURI, deletePhoto } from '../../service/photoService.js';
 import PhotoViewer from '../../components/PhotoViewer.jsx';
-import { usePhotoContext } from 'context/PhotoContext.jsx';
-import { useThemeContext } from 'context/ThemeContext.jsx';
-import { getThemeColors } from 'theme/appColors.js';
+import { usePhotoContext } from '../../context/PhotoContext.jsx';
+import { useThemeContext } from '../../context/ThemeContext.jsx';
+import { getThemeColors } from '../../theme/appColors.js';
 import { getCachedPhotos, setCachedPhotos, removePhotoFromCache } from '../../service/cacheService.js';
 
 const numColumns = 4;

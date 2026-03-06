@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { View, Text, Image, Pressable, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { getThemeColors } from 'theme/appColors.js';
+import { getThemeColors } from '../../theme/appColors.js';
 
 const CARD_SIZE = 180;
 

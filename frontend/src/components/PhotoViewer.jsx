@@ -4,8 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import PagerView from 'react-native-pager-view';
-import { useThemeContext } from 'context/ThemeContext.jsx';
-import { getThemeColors } from 'theme/appColors.js';
+import { useThemeContext } from '../context/ThemeContext.jsx';
+import { getThemeColors } from '../theme/appColors.js';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 

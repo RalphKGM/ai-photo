@@ -3,8 +3,8 @@ import { View, Text, ScrollView, Pressable, Alert, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../config/supabase';
-import { useThemeContext } from 'context/ThemeContext.jsx';
-import { getThemeColors } from 'theme/appColors.js';
+import { useThemeContext } from '../../context/ThemeContext.jsx';
+import { getThemeColors } from '../../theme/appColors.js';
 
 export default function Profile() {
   const router = useRouter();

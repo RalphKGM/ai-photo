@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import * as MediaLibrary from 'expo-media-library';
 import * as ImagePicker from 'expo-image-picker';
 import { getSession } from './auth/authService';
-import { API_URL } from 'config/api';
+import { API_URL } from '../config/api.js';
 
 export const takePhoto = async () => {
     const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();

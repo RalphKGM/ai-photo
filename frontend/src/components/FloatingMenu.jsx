@@ -1,11 +1,11 @@
 import { View, Text, Pressable, Animated } from 'react-native';
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { takePhoto } from 'service/photoService';
+import { takePhoto } from '../service/photoService.js';
 import { useRouter } from 'expo-router';
-import { usePhotoContext } from 'context/PhotoContext';
-import { useThemeContext } from 'context/ThemeContext.jsx';
-import { getThemeColors } from 'theme/appColors.js';
+import { usePhotoContext } from '../context/PhotoContext.jsx';
+import { useThemeContext } from '../context/ThemeContext.jsx';
+import { getThemeColors } from '../theme/appColors.js';
 
 export default function FloatingMenu({ menuAnim }) {
   const router = useRouter();

@@ -1,8 +1,8 @@
 import { View, Text, Pressable, Alert } from 'react-native';
 import { logout } from '../../service/auth/authService.js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useThemeContext } from 'context/ThemeContext.jsx';
-import { getThemeColors } from 'theme/appColors.js';
+import { useThemeContext } from '../../context/ThemeContext.jsx';
+import { getThemeColors } from '../../theme/appColors.js';
 
 const CACHE_KEY = 'photos_cache';
 
