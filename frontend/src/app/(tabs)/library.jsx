@@ -28,6 +28,17 @@ export default function Library() {
   const menuAnim = useRef(new Animated.Value(0)).current;
   const searchAnim = useRef(new Animated.Value(0)).current;
 
+  const flatListRef = useRef(null);
+
+  // scroll sa bottom part (latest photo)
+  useEffect(() => {
+    if (photos.length > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: false });
+      }, 100);
+    }
+  }, [photos]);
+
   const handleGetPhotos = async () => {
     if (permissionResponse?.status !== 'granted') {
       const { status } = await requestPermission();
@@ -323,12 +334,14 @@ export default function Library() {
         </View>
       ) : (
         <FlatList
+          ref={flatListRef}
           data={photos}
           numColumns={numColumns}
           keyExtractor={(item) => item.device_asset_id}
           contentContainerStyle={{ paddingHorizontal: 2.5, paddingTop: 2 }}
           showsVerticalScrollIndicator={false}
           renderItem={renderPhotoItem}
+          onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
         />
       )}
 
