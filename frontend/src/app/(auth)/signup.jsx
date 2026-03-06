@@ -16,7 +16,33 @@ export default function Signup() {
   const dark = isDarkMode;
   const colors = getThemeColors(isDarkMode);
 
+  const validate = () => {
+    if (!email.trim()) {
+      Alert.alert('Validation Error', 'Email is required.');
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Validation Error', 'Please enter a valid email address.');
+      return false;
+    }
+
+    if (!password) {
+      Alert.alert('Validation Error', 'Password is required.');
+      return false;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Validation Error', 'Password must be at least 6 characters.');
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSignup = async () => {
+    if (!validate()) return;
     setLoading(true);
     try {
       await signup(email, password);
@@ -26,9 +52,7 @@ export default function Signup() {
     } finally {
       setLoading(false);
     }
-  };
-
-  
+  }; 
 
   return (
     <KeyboardAvoidingView
