@@ -219,10 +219,10 @@ export default function Library() {
             </Animated.View>
           )}
 
-          <View className="flex-row items-center">
+          <View className="flex-row items-center pt-2">
             {!isSearching ? (
               <Pressable onPress={toggleSearch}>
-                <Ionicons name="search" size={20} color={colors.icon} />
+                <Ionicons name="search" size={25} color={colors.icon} />
               </Pressable>
             ) : (
               <Pressable onPress={toggleSearch} className="px-1 py-1">
