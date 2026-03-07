@@ -132,7 +132,7 @@ export default function PhotoViewer({ visible, photos = [], initialIndex = 0, on
               const key = photo.item?.id ?? photo.id ?? index;
 
               // only render the current page and its immediate neighbors.
-              const shouldRenderImage = Math.abs(index - currentIndex) <= 1;
+              const shouldRenderImage = Math.abs(index - currentIndex) <= 3;
 
               return (
                 <View key={key} className="flex-1 justify-center items-center">
