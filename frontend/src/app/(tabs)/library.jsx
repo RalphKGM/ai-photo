@@ -5,7 +5,7 @@ import * as MediaLibrary from 'expo-media-library';
 import { useRouter } from 'expo-router';
 import FloatingMenu from '../../components/FloatingMenu.jsx';
 import PhotoItem from '../../components/PhotoItem.jsx';
-import { getPhotos, getPhotoLocalURI, deletePhoto } from '../../service/photoService.js';
+import { getPhotos, getPhotoLocalURI, deletePhoto, resolvePhotoUri } from '../../service/photoService.js';
 import PhotoViewer from '../../components/PhotoViewer.jsx';
 import { usePhotoContext } from '../../context/PhotoContext.jsx';
 import { useThemeContext } from '../../context/ThemeContext.jsx';
@@ -51,7 +51,7 @@ export default function Library() {
     if (cached && cached.length > 0) {
       // show photos from cache immediately
       const sortedCached = cached
-        .filter(photo => photo && photo.device_asset_id)
+        .filter(photo => photo?.device_asset_id)
         .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
       setPhotos(sortedCached);
 
@@ -63,37 +63,15 @@ export default function Library() {
       // remove photos that are no longer in the database
       const validCached = cached.filter(p => dbPhotoIds.has(p.device_asset_id));
 
-      // check for photos with photo_id in database but not in cache
+      // check for photos in database but not in cache
       const missingFromCache = dbPhotos.filter(p => !cachedIds.has(p.device_asset_id));
 
       // fetch URIs for missing photos
-      const missingWithUris = await Promise.all(
-        missingFromCache.map(async (photo) => {
-          if (photo.uri) return photo;
-          try {
-            const uri = await getPhotoLocalURI(photo.device_asset_id);
-            return { ...photo, uri };
-          } catch (error) {
-            // verify if na delete ba talaga yung photo
-            const assetInfo = await MediaLibrary.getAssetInfoAsync(photo.device_asset_id);
-            if (assetInfo) {
-                // asset still exists, uri fetch failed for a different reason
-                console.log(`Asset ${photo.device_asset_id} still exists, skipping deletion`);
-                return { ...photo, uri };
-            } else {
-                console.log(`Asset ${photo.device_asset_id} confirmed deleted`);
-                //delete photo from cache and database
-                await deletePhoto(photo.device_asset_id); 
-                await removePhotoFromCache(photo.device_asset_id);
-                return null;
-            }
-          }
-        })
-      );
+      const missingWithUris = await Promise.all(missingFromCache.map(resolvePhotoUri));
 
       // merge valid cached + missing photos
       const merged = [...validCached, ...missingWithUris]
-        .filter(photo => photo && photo.device_asset_id)
+        .filter(photo => photo?.device_asset_id)
         .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
       setPhotos(merged);
@@ -103,29 +81,7 @@ export default function Library() {
 
     // fallback to supabase (if no photos in cache)
     const assets = await getPhotos();
-    const photosWithUris = await Promise.all(
-      assets.map(async (photo) => {
-        if (photo.uri) return photo;
-        try {
-          const uri = await getPhotoLocalURI(photo.device_asset_id);
-          return { ...photo, uri };
-        } catch (error) {
-          // verify if na delete ba talaga yung photo
-          const assetInfo = await MediaLibrary.getAssetInfoAsync(photo.device_asset_id);
-            if (assetInfo) {
-                // asset still exists, uri fetch failed for a different reason
-                console.log(`Asset ${photo.device_asset_id} still exists, skipping deletion`);
-                return { ...photo, uri };
-            } else {
-                console.log(`Asset ${photo.device_asset_id} confirmed deleted`);
-                //delete photo from cache and database
-                await deletePhoto(photo.device_asset_id); 
-                await removePhotoFromCache(photo.device_asset_id);
-                return null;
-            }
-        }
-      })
-    );
+    const photosWithUris = await Promise.all(assets.map(resolvePhotoUri));
 
     const sorted = photosWithUris
       .filter(Boolean)
@@ -133,6 +89,13 @@ export default function Library() {
     setPhotos(sorted);
     await setCachedPhotos(sorted);
   };
+
+  //useEffect(() => { handleGetPhotos(); }, []);
+  useEffect(() => {
+    if (!isSearching) {
+      handleGetPhotos();
+    }
+  }, [isSearching]);
   //useEffect(() => { handleGetPhotos(); }, []);
   useEffect(() => {
     if (!isSearching) {

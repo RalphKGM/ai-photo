@@ -191,3 +191,26 @@ export const deletePhoto = async (photoId) => {
 
   return data;
 }
+
+// fetch local URI for a photo, delete from cache+db if asset no longer exists on device
+export const resolvePhotoUri = async (photo) => {
+    if (photo.uri) return photo;
+    try {
+      const uri = await getPhotoLocalURI(photo.device_asset_id);
+      return { ...photo, uri };
+    } catch (error) {
+      // verify if na delete ba talaga yung photo
+      const assetInfo = await MediaLibrary.getAssetInfoAsync(photo.device_asset_id);
+      if (assetInfo) {
+        // asset still exists, uri fetch failed for a different reason
+        console.log(`Asset ${photo.device_asset_id} still exists`);
+        return { ...photo, uri: null };
+      } else {
+        console.log(`Asset ${photo.device_asset_id} confirmed deleted`);
+        // delete photo from cache and database
+        await deletePhoto(photo.device_asset_id);
+        await removePhotoFromCache(photo.device_asset_id);
+        return null;
+      }
+    }
+  };
