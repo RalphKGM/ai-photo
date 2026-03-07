@@ -191,6 +191,12 @@ export default function Library() {
 
   const colors = getThemeColors(isDarkMode);
 
+  const bannerBg = isDarkMode ? '#1C1C1E' : '#F5F5F5';
+  const bannerTrackBg = isDarkMode ? '#3A3A3C' : '#D4D4D8';
+  const bannerSpinnerColor = isDarkMode ? '#A1A1AA' : '#52525B';
+  const bannerTextColor = isDarkMode ? '#E4E4E7' : '#52525B';
+  const bannerSubTextColor = isDarkMode ? '#71717A' : '#737373';
+
   return (
     <View className={`flex-1 ${colors.pageBg}`}>
       {/* header */}
@@ -244,32 +250,38 @@ export default function Library() {
       {uploadProgress && (
         <Pressable
           onPress={() => router.push('/upload')}
-          className="mx-3 mt-2 mb-1 bg-[#F5F5F5] rounded-2xl px-4 py-3 active:opacity-70"
+          style={{ backgroundColor: bannerBg }}
+          className="mx-3 mt-2 mb-1 rounded-2xl px-4 py-3 active:opacity-70"
         >
           <View className="flex-row items-center justify-between mb-2">
             <View className="flex-row items-center">
               {uploadProgress.done ? (
                 <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
               ) : (
-                <ActivityIndicator size="small" color="#52525B" />
+                <ActivityIndicator size="small" color={bannerSpinnerColor} />
               )}
               <Text
-                className={`font-semibold text-sm ml-2 ${
-                  uploadProgress.done ? 'text-green-600' : 'text-[#52525B]'
-                }`}
+                style={{ color: uploadProgress.done ? '#22C55E' : bannerTextColor }}
+                className="font-semibold text-sm ml-2"
               >
                 {uploadProgress.done
                   ? `${uploadProgress.total} photo${uploadProgress.total !== 1 ? 's' : ''} added`
                   : `Uploading... ${uploadProgress.current}/${uploadProgress.total}`}
               </Text>
             </View>
-            <Text className="text-[#737373] text-xs">Tap to view</Text>
+            <Text style={{ color: bannerSubTextColor }} className="text-xs">Tap to view</Text>
           </View>
 
-          <View className="h-1.5 bg-[#D4D4D8] rounded-full overflow-hidden">
+          <View
+            style={{ backgroundColor: bannerTrackBg }}
+            className="h-1.5 rounded-full overflow-hidden"
+          >
             <View
-              className={`h-full rounded-full ${uploadProgress.done ? 'bg-[#22C55E]' : 'bg-[#52525B]'}`}
-              style={{ width: `${uploadPct}%` }}
+              className={`h-full rounded-full ${uploadProgress.done ? 'bg-[#22C55E]' : ''}`}
+              style={{
+                width: `${uploadPct}%`,
+                backgroundColor: uploadProgress.done ? '#22C55E' : bannerSpinnerColor,
+              }}
             />
           </View>
         </Pressable>
