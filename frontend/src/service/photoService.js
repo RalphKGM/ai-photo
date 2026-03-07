@@ -161,12 +161,12 @@ export const getPhotos = async (query = '') => {
     }
 };
 
-export const getPhotoLocalURI = async (photoId) => {
+const getPhotoLocalURI = async (assetId) => {
     try {
-        const assetInfo = await MediaLibrary.getAssetInfoAsync(photoId);
+        const assetInfo = await MediaLibrary.getAssetInfoAsync(assetId);
         return assetInfo.localUri || assetInfo.uri;
     } catch (error) {
-        console.error("Asset not found:", photoId);
+        console.log("Asset not found:", assetId);
         throw error;
     }
 };
@@ -176,8 +176,7 @@ export const deletePhoto = async (photoId) => {
     throw new Error('Photo ID is required');
 
   const token = await getSession();
-  const encodedPhotoId = encodeURIComponent(photoId); //since photoId contains '/', we need to encode it
-  const response = await fetch(`${API_URL}/api/photo/${encodedPhotoId}`, {
+  const response = await fetch(`${API_URL}/api/photo/${photoId}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`
@@ -208,8 +207,8 @@ export const resolvePhotoUri = async (photo) => {
       } else {
         console.log(`Asset ${photo.device_asset_id} confirmed deleted`);
         // delete photo from cache and database
-        await deletePhoto(photo.device_asset_id);
-        await removePhotoFromCache(photo.device_asset_id);
+        await deletePhoto(photo.id);
+        await removePhotoFromCache(photo.id);
         return null;
       }
     }

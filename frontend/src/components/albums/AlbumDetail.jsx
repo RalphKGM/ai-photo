@@ -42,7 +42,7 @@ export default function AlbumDetail({ album, onBack, onPhotosChange }) {
 
   const handlePressPhoto = useCallback((item) => {
     const index = photos.findIndex(
-      p => p.device_asset_id === item.item.device_asset_id
+      p => p.id === item.item.id
     );
     if (index !== -1) setSelectedIndex(index);
   }, [photos]);
@@ -50,13 +50,13 @@ export default function AlbumDetail({ album, onBack, onPhotosChange }) {
   const handleDeletePhoto = useCallback(async () => {
     if (selectedIndex === null || isDeletingPhoto) return;
     const photo = photos[selectedIndex];
-    if (!photo?.device_asset_id) return;
+    if (!photo?.id) return;
 
     try {
       setIsDeletingPhoto(true);
-      await deletePhoto(photo.device_asset_id);
-      await removePhotoFromCache(photo.device_asset_id);
-      const updated = photos.filter(p => p.device_asset_id !== photo.device_asset_id);
+      await deletePhoto(photo.id);
+      await removePhotoFromCache(photo.id);
+      const updated = photos.filter(p => p.id !== photo.id);
       setPhotos(updated);
       onPhotosChange(updated);
       setSelectedIndex(null);
@@ -106,7 +106,7 @@ export default function AlbumDetail({ album, onBack, onPhotosChange }) {
       <Animated.FlatList
         data={photos}
         numColumns={GRID_COLUMNS}
-        keyExtractor={item => item.device_asset_id}
+        keyExtractor={item => item.id}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: true }

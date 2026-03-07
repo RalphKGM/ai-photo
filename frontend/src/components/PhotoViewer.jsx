@@ -129,7 +129,7 @@ export default function PhotoViewer({ visible, photos = [], initialIndex = 0, on
           >
             {photos.map((photo, index) => {
               const uri = photo.uri ?? photo.item?.uri;
-              const key = photo.item?.device_asset_id ?? photo.device_asset_id ?? index;
+              const key = photo.item?.id ?? photo.id ?? index;
 
               // only render the current page and its immediate neighbors.
               const shouldRenderImage = Math.abs(index - currentIndex) <= 1;

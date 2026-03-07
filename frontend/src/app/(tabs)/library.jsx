@@ -5,7 +5,7 @@ import * as MediaLibrary from 'expo-media-library';
 import { useRouter } from 'expo-router';
 import FloatingMenu from '../../components/FloatingMenu.jsx';
 import PhotoItem from '../../components/PhotoItem.jsx';
-import { getPhotos, getPhotoLocalURI, deletePhoto, resolvePhotoUri } from '../../service/photoService.js';
+import { getPhotos, deletePhoto, resolvePhotoUri } from '../../service/photoService.js';
 import PhotoViewer from '../../components/PhotoViewer.jsx';
 import { usePhotoContext } from '../../context/PhotoContext.jsx';
 import { useThemeContext } from '../../context/ThemeContext.jsx';
@@ -51,27 +51,27 @@ export default function Library() {
     if (cached && cached.length > 0) {
       // show photos from cache immediately
       const sortedCached = cached
-        .filter(photo => photo?.device_asset_id)
+        .filter(photo => photo?.id)
         .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
       setPhotos(sortedCached);
 
       // verify if nasa db yung photos (photo_id)
       const dbPhotos = await getPhotos();
-      const dbPhotoIds = new Set(dbPhotos.map(p => p.device_asset_id));
-      const cachedIds = new Set(cached.map(p => p.device_asset_id));
+      const dbPhotoIds = new Set(dbPhotos.map(p => p.id));
+      const cachedIds = new Set(cached.map(p => p.id));
 
       // remove photos that are no longer in the database
-      const validCached = cached.filter(p => dbPhotoIds.has(p.device_asset_id));
+      const validCached = cached.filter(p => dbPhotoIds.has(p.id));
 
       // check for photos in database but not in cache
-      const missingFromCache = dbPhotos.filter(p => !cachedIds.has(p.device_asset_id));
+      const missingFromCache = dbPhotos.filter(p => !cachedIds.has(p.id));
 
       // fetch URIs for missing photos
       const missingWithUris = await Promise.all(missingFromCache.map(resolvePhotoUri));
 
       // merge valid cached + missing photos
       const merged = [...validCached, ...missingWithUris]
-        .filter(photo => photo?.device_asset_id)
+        .filter(photo => photo?.id)
         .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
       setPhotos(merged);
@@ -112,18 +112,7 @@ export default function Library() {
       }
 
       const assets = await getPhotos(searchQuery.trim());
-      const photosWithUris = await Promise.all(
-        assets.map(async (photo) => {
-          if (photo.uri) return photo;
-          try {
-            const uri = await getPhotoLocalURI(photo.device_asset_id);
-            return { ...photo, uri };
-          } catch (error) {
-            console.error(`Error fetching URI for ${photo.device_asset_id}:`, error);
-            return photo;
-          }
-        })
-      );
+      const photosWithUris = await Promise.all(assets.map(resolvePhotoUri));
 
       const sorted = photosWithUris
         .filter(Boolean)
@@ -137,9 +126,9 @@ export default function Library() {
   };
 
   const handlePressPhoto = useCallback((item) => {
-    console.log('Photo pressed:', item.item.device_asset_id);
+    console.log('Photo pressed:', item.item.id);
     const index = photos.findIndex(
-      p => p.device_asset_id === item.item.device_asset_id
+      p => p.id === item.item.id
     );
     if (index !== -1) setSelectedIndex(index);
   }, [photos]);
@@ -150,14 +139,14 @@ export default function Library() {
     if (selectedIndex === null || isDeletingPhoto) return;
 
     const photo = photos[selectedIndex];
-    if (!photo?.device_asset_id) return;
+    if (!photo?.id) return;
 
     try {
       setIsDeletingPhoto(true);
-      const deletedPhotoId = photo.device_asset_id;
+      const deletedPhotoId = photo.id;
 
       await deletePhoto(deletedPhotoId);
-      setPhotos(prev => prev.filter((p) => p.device_asset_id !== deletedPhotoId));
+      setPhotos(prev => prev.filter((p) => p.id !== deletedPhotoId));
       await removePhotoFromCache(deletedPhotoId);
       setSelectedIndex(null);
     } catch (error) {
@@ -300,7 +289,7 @@ export default function Library() {
           ref={flatListRef}
           data={photos}
           numColumns={numColumns}
-          keyExtractor={(item) => item.device_asset_id}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: 2.5, paddingTop: 2 }}
           showsVerticalScrollIndicator={false}
           renderItem={renderPhotoItem}
