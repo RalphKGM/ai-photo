@@ -23,6 +23,7 @@ export default function Library() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
+  const [filteredPhotos, setFilteredPhotos] = useState(null);
 
   const router = useRouter();
   const menuAnim = useRef(new Animated.Value(0)).current;
@@ -30,7 +31,7 @@ export default function Library() {
 
   const flatListRef = useRef(null);
 
-  // scroll sa bottom part (latest photo)
+  // scroll to bottom (latest photo)
   useEffect(() => {
     if (photos.length > 0) {
       setTimeout(() => {
@@ -90,24 +91,15 @@ export default function Library() {
     await setCachedPhotos(sorted);
   };
 
-  //useEffect(() => { handleGetPhotos(); }, []);
   useEffect(() => {
-    if (!isSearching) {
-      handleGetPhotos();
-    }
-  }, [isSearching]);
-  //useEffect(() => { handleGetPhotos(); }, []);
-  useEffect(() => {
-    if (!isSearching) {
-      handleGetPhotos();
-    }
-  }, [isSearching]);
+    handleGetPhotos();
+  }, []);
 
   const handleSearch = async () => {
     try {
       setSearchLoading(true);
       if (!searchQuery || searchQuery.trim() === '') {
-        await handleGetPhotos();
+        setFilteredPhotos(null);
         return;
       }
 
@@ -117,7 +109,8 @@ export default function Library() {
       const sorted = photosWithUris
         .filter(Boolean)
         .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-      setPhotos(sorted);
+
+      setFilteredPhotos(sorted);
     } catch (e) {
       console.error('Search error', e);
     } finally {
@@ -126,19 +119,18 @@ export default function Library() {
   };
 
   const handlePressPhoto = useCallback((item) => {
-    console.log('Photo pressed:', item.item.id);
-    const index = photos.findIndex(
-      p => p.id === item.item.id
-    );
+    const source = filteredPhotos ?? photos;
+    const index = source.findIndex(p => p.id === item.item.id);
     if (index !== -1) setSelectedIndex(index);
-  }, [photos]);
+  }, [photos, filteredPhotos]);
 
-  const viewerPhotos = photos.map(photo => ({ item: photo }));
+  const viewerPhotos = (filteredPhotos ?? photos).map(photo => ({ item: photo }));
 
   const handleDeleteSelectedPhoto = useCallback(async () => {
     if (selectedIndex === null || isDeletingPhoto) return;
 
-    const photo = photos[selectedIndex];
+    const source = filteredPhotos ?? photos;
+    const photo = source[selectedIndex];
     if (!photo?.id) return;
 
     try {
@@ -147,6 +139,9 @@ export default function Library() {
 
       await deletePhoto(deletedPhotoId);
       setPhotos(prev => prev.filter((p) => p.id !== deletedPhotoId));
+      if (filteredPhotos) {
+        setFilteredPhotos(prev => prev.filter((p) => p.id !== deletedPhotoId));
+      }
       await removePhotoFromCache(deletedPhotoId);
       setSelectedIndex(null);
     } catch (error) {
@@ -154,7 +149,7 @@ export default function Library() {
     } finally {
       setIsDeletingPhoto(false);
     }
-  }, [isDeletingPhoto, selectedIndex, photos, setPhotos]);
+  }, [isDeletingPhoto, selectedIndex, photos, filteredPhotos, setPhotos]);
 
   const toggleSearch = () => {
     const toValue = isSearching ? 0 : 1;
@@ -168,6 +163,7 @@ export default function Library() {
       if (toValue === 0) {
         setIsSearching(false);
         setSearchQuery('');
+        setFilteredPhotos(null);
         Keyboard.dismiss();
       }
     });
@@ -216,7 +212,8 @@ export default function Library() {
                 onChangeText={setSearchQuery}
                 onSubmitEditing={handleSearch}
                 autoFocus
-                className={`${colors.inputBg} rounded-xl px-4 py-3 ${colors.inputText} text-base`}
+                className={`${colors.inputBg} rounded-xl px-4 py-2 ${colors.inputText} text-base`}
+                style={{ height: 40 }}
                 editable={!searchLoading}
               />
             </Animated.View>
@@ -278,13 +275,7 @@ export default function Library() {
         </Pressable>
       )}
 
-      {/* photo grid or loading */}
-      {searchLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.loading} />
-          <Text className={`mt-3 text-base ${colors.loadingText}`}>Searching...</Text>
-        </View>
-      ) : (
+      <View className="flex-1 relative">
         <FlatList
           ref={flatListRef}
           data={photos}
@@ -295,7 +286,26 @@ export default function Library() {
           renderItem={renderPhotoItem}
           onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
         />
-      )}
+        {isSearching && (
+          <View className={`absolute inset-0 ${colors.pageBg}`}>
+            {searchLoading ? (
+              <View className="flex-1 items-center justify-center">
+                <ActivityIndicator size="large" color={colors.loading} />
+                <Text className={`mt-3 text-base ${colors.loadingText}`}>Searching...</Text>
+              </View>
+            ) : filteredPhotos !== null ? (
+              <FlatList
+                data={filteredPhotos}
+                numColumns={numColumns}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={{ paddingHorizontal: 2.5, paddingTop: 2, paddingBottom: 200 }}
+                showsVerticalScrollIndicator={false}
+                renderItem={renderPhotoItem}
+              />
+            ) : null}
+          </View>
+        )}
+      </View>
 
       <PhotoViewer
         visible={selectedIndex !== null}
@@ -306,16 +316,13 @@ export default function Library() {
         isDeleting={isDeletingPhoto}
       />
 
-      {/* + button 
+      {/* + button
       <FloatingMenu
         menuAnim={menuAnim}
         appendPhoto={appendPhoto}
       />
-      
-      
       */}
-      
+
     </View>
   );
 }
-
