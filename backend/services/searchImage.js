@@ -62,8 +62,7 @@ export const searchImage = async (user, supabase, query) => {
             .from('photo')
             .select('id, device_asset_id, descriptive, literal, tags, created_at, category')
             .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(50);
+            .order('created_at', { ascending: false });
 
         if (error) throw error;
         return { results: data, count: data?.length || 0 };
