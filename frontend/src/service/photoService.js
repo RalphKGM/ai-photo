@@ -3,6 +3,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as ImagePicker from 'expo-image-picker';
 import { getSession } from './auth/authService';
 import { API_URL } from '../config/api.js';
+import { removePhotoFromCache } from './cacheService.js';
 
 export const takePhoto = async () => {
     const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
