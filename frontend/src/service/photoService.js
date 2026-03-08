@@ -136,7 +136,31 @@ export const processPhotos = async (photos) => {
 */
 };
 
-export const getPhotos = async (query = '') => {
+export const getAllPhotos = async () => {
+    try {
+        const token = await getSession();
+
+        const response = await fetch(`${API_URL}/api/photos`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            return data.result || [];
+        } else {
+            throw new Error(data.error || 'Failed to load photos');
+        }
+    } catch (error) {
+        console.log("getAllPhotos Service Error:", error);
+        throw error;
+    }
+};
+
+export const searchPhoto = async (query = '') => {
     try {
         const token = await getSession();
 
@@ -152,12 +176,12 @@ export const getPhotos = async (query = '') => {
         const data = await response.json();
 
         if (response.ok) {
-            return data.results;
+            return data.results || [];
         } else {
-            throw new Error(data.error || 'Failed to load photos');
+            throw new Error(data.error || 'Failed to search photos');
         }
     } catch (error) {
-        console.log("getPhotos Service Error:", error);
+        console.log("searchPhoto Service Error:", error);
         throw error;
     }
 };

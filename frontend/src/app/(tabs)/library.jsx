@@ -5,7 +5,7 @@ import * as MediaLibrary from 'expo-media-library';
 import { useRouter } from 'expo-router';
 import FloatingMenu from '../../components/FloatingMenu.jsx';
 import PhotoItem from '../../components/PhotoItem.jsx';
-import { getPhotos, deletePhoto, resolvePhotoUri } from '../../service/photoService.js';
+import { getAllPhotos, searchPhoto, deletePhoto, resolvePhotoUri } from '../../service/photoService.js';
 import PhotoViewer from '../../components/PhotoViewer.jsx';
 import { usePhotoContext } from '../../context/PhotoContext.jsx';
 import { useThemeContext } from '../../context/ThemeContext.jsx';
@@ -21,6 +21,7 @@ export default function Library() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
   const [filteredPhotos, setFilteredPhotos] = useState(null);
@@ -57,7 +58,7 @@ export default function Library() {
       setPhotos(sortedCached);
 
       // verify if nasa db yung photos (photo_id)
-      const dbPhotos = await getPhotos();
+      const dbPhotos = await getAllPhotos();
       const dbPhotoIds = new Set(dbPhotos.map(p => p.id));
       const cachedIds = new Set(cached.map(p => p.id));
 
@@ -81,7 +82,7 @@ export default function Library() {
     }
 
     // fallback to supabase (if no photos in cache)
-    const assets = await getPhotos();
+    const assets = await getAllPhotos();
     const photosWithUris = await Promise.all(assets.map(resolvePhotoUri));
 
     const sorted = photosWithUris
@@ -98,12 +99,9 @@ export default function Library() {
   const handleSearch = async () => {
     try {
       setSearchLoading(true);
-      if (!searchQuery || searchQuery.trim() === '') {
-        setFilteredPhotos(null);
-        return;
-      }
+      setSearchError('');
 
-      const assets = await getPhotos(searchQuery.trim());
+      const assets = await searchPhoto(searchQuery);
       const photosWithUris = await Promise.all(assets.map(resolvePhotoUri));
 
       const sorted = photosWithUris
@@ -112,6 +110,8 @@ export default function Library() {
 
       setFilteredPhotos(sorted);
     } catch (e) {
+      setFilteredPhotos(null);
+      setSearchError(e.message || 'Search failed');
       console.error('Search error', e);
     } finally {
       setSearchLoading(false);
@@ -164,6 +164,7 @@ export default function Library() {
         setIsSearching(false);
         setSearchQuery('');
         setFilteredPhotos(null);
+        setSearchError('');
         Keyboard.dismiss();
       }
     });
@@ -304,6 +305,10 @@ export default function Library() {
               <View className="flex-1 items-center justify-center">
                 <ActivityIndicator size="large" color={colors.loading} />
                 <Text className={`mt-3 text-base ${colors.loadingText}`}>Searching...</Text>
+              </View>
+            ) : searchError ? (
+              <View className="flex-1 items-center justify-center px-6">
+                <Text className={`text-base text-center ${colors.loadingText}`}>{searchError}</Text>
               </View>
             ) : filteredPhotos !== null ? (
               <FlatList

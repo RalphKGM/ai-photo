@@ -10,6 +10,10 @@ export const searchImagesController = async (req, res) => {
         if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
         const { query } = req.body;
+        if (!query || !query.trim()) {
+            return res.status(400).json({ error: 'Search query is required' });
+        }
+
         const { results, count } = await searchImage(user, supabase, query);
 
         res.status(200).json({ results, count });
