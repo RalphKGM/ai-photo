@@ -64,15 +64,15 @@ export default function Upload() {
     progressAnim.setValue(0);
 
     try {
-      for (let i = 0; i < selectedAssets.length; i++) {
-        const asset = selectedAssets[i];
+      if (total === 1) {
+        const asset = selectedAssets[0];
         const res = await processPhotos([asset]);
 
         if (res?.duplicate) {
-          setDuplicateWarning((prev) => ({
-            count: prev?.count ? prev.count + 1 : 1,
-            items: prev?.items ? [...prev.items, asset.uri] : [asset.uri],
-          }));
+          setDuplicateWarning({
+            count: 1,
+            items: [asset.uri],
+          });
         }
 
         if (res?.photo) {
@@ -90,8 +90,43 @@ export default function Upload() {
           appendPhoto(newPhoto);
           await addPhotoToCache([newPhoto]);
         }
+      } else {
+        const res = await processPhotos(selectedAssets);
+        const successfulResults = Array.isArray(res?.results) ? res.results : [];
+        const newPhotos = successfulResults
+          .map((r) => {
+            const asset = selectedAssets[r.index];
+            if (!asset || !r.photo) return null;
+            return {
+              device_asset_id: r.photo.device_asset_id,
+              uri: asset.uri,
+              descriptive: r.photo.descriptive || null,
+              literal: r.photo.literal || null,
+              manual_description: r.photo.manual_description || null,
+              id: r.photo.id || null,
+              category: r.photo.category,
+              tags: r.photo.tags,
+              created_at: r.photo.created_at || null,
+            };
+          })
+          .filter(Boolean);
 
-        setUploadProgress({ current: i + 1, total, done: false });
+        newPhotos.forEach(appendPhoto);
+        if (newPhotos.length > 0) {
+          await addPhotoToCache(newPhotos);
+        }
+
+        const duplicateErrors = (Array.isArray(res?.errors) ? res.errors : []).filter(
+          (e) => e?.error === 'DUPLICATE_IMAGE'
+        );
+        if (duplicateErrors.length > 0) {
+          setDuplicateWarning({
+            count: duplicateErrors.length,
+            items: duplicateErrors
+              .map((e) => selectedAssets[e.index]?.uri)
+              .filter(Boolean),
+          });
+        }
       }
 
       setUploadProgress({ current: total, total, done: true });
