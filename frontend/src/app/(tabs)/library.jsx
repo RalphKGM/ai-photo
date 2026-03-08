@@ -18,6 +18,7 @@ import {
   getAllPhotos,
   searchPhoto,
   deletePhoto,
+  updatePhotoDescriptions,
 } from '../../service/photoService.js';
 import PhotoViewer from '../../components/PhotoViewer.jsx';
 import { usePhotoContext } from '../../context/PhotoContext.jsx';
@@ -27,6 +28,7 @@ import {
   getCachedPhotos,
   setCachedPhotos,
   removePhotoFromCache,
+  addPhotoToCache,
 } from '../../service/cacheService.js';
 
 const numColumns = 4;
@@ -229,6 +231,27 @@ export default function Library() {
       setIsDeletingPhoto(false);
     }
   }, [isDeletingPhoto, selectedIndex, filteredPhotos, setPhotos, sourcePhotos]);
+
+  const handleSaveDescriptions = useCallback(
+    async ({ photoId, literal, descriptive }) => {
+      if (!photoId) throw new Error('Photo ID is required');
+
+      const updated = await updatePhotoDescriptions({ photoId, literal, descriptive });
+
+      setPhotos((prev) =>
+        prev.map((photo) => (photo.id === photoId ? { ...photo, ...updated } : photo))
+      );
+
+      if (filteredPhotos) {
+        setFilteredPhotos((prev) =>
+          prev.map((photo) => (photo.id === photoId ? { ...photo, ...updated } : photo))
+        );
+      }
+
+      await addPhotoToCache(updated);
+    },
+    [filteredPhotos, setPhotos]
+  );
 
   const toggleSearch = () => {
     if (isSelectionMode) return;
@@ -504,6 +527,7 @@ export default function Library() {
         initialIndex={selectedIndex ?? 0}
         onClose={() => setSelectedIndex(null)}
         onDelete={handleDeleteSelectedPhoto}
+        onSaveDescriptions={handleSaveDescriptions}
         isDeleting={isDeletingPhoto}
       />
     </View>

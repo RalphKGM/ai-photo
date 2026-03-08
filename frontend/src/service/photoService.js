@@ -3,8 +3,6 @@ import * as MediaLibrary from 'expo-media-library';
 import * as ImagePicker from 'expo-image-picker';
 import { getSession } from './auth/authService';
 import { API_URL } from '../config/api.js';
-import { removePhotoFromCache } from './cacheService.js';
-import * as ImageManipulator from 'expo-image-manipulator';
 
 export const takePhoto = async () => {
     const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
@@ -207,3 +205,25 @@ export const deletePhoto = async (photoId) => {
 
   return data;
 }
+
+export const updatePhotoDescriptions = async ({ photoId, literal, descriptive }) => {
+  if (!photoId)
+    throw new Error('Photo ID is required');
+
+  const token = await getSession();
+  const response = await fetch(`${API_URL}/api/photo/${photoId}/descriptions`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ literal, descriptive }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to update descriptions');
+  }
+
+  return data.photo;
+};

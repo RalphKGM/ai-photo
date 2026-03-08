@@ -1,4 +1,4 @@
-import { Modal, View, Pressable, Animated, Text, ScrollView, Dimensions, Alert, ActivityIndicator } from 'react-native';
+import { Modal, View, Pressable, Animated, Text, ScrollView, Dimensions, Alert, ActivityIndicator, TextInput, Keyboard } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -18,7 +18,15 @@ function TagPill({ tag, colors }) {
   );
 }
 
-export default function PhotoViewer({ visible, photos = [], initialIndex = 0, onClose, onDelete, isDeleting = false }) {
+export default function PhotoViewer({
+  visible,
+  photos = [],
+  initialIndex = 0,
+  onClose,
+  onDelete,
+  onSaveDescriptions,
+  isDeleting = false
+}) {
   const { isDarkMode } = useThemeContext();
   const colors = getThemeColors(isDarkMode);
   const pagerRef = useRef(null);
@@ -28,13 +36,62 @@ export default function PhotoViewer({ visible, photos = [], initialIndex = 0, on
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const sheetAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
+  const keyboardAnim = useRef(new Animated.Value(0)).current;
   const [sheetVisible, setSheetVisible] = useState(false);
+  const [literalDraft, setLiteralDraft] = useState('');
+  const [descriptiveDraft, setDescriptiveDraft] = useState('');
+  const [isSavingDescriptions, setIsSavingDescriptions] = useState(false);
+  const [isEditingDescriptions, setIsEditingDescriptions] = useState(false);
 
   const currentPhoto = photos?.[currentIndex];
   const photoData = currentPhoto?.item ?? currentPhoto;
   const tags = photoData?.tags
     ? photoData.tags.split(',').map(t => t.trim()).filter(Boolean)
     : [];
+  const currentLiteral = photoData?.literal ?? '';
+  const currentDescriptive = photoData?.descriptive ?? '';
+  const hasDescriptionChange =
+    literalDraft.trim() !== currentLiteral.trim() ||
+    descriptiveDraft.trim() !== currentDescriptive.trim();
+  const canSave =
+    Boolean(onSaveDescriptions) &&
+    !isSavingDescriptions &&
+    hasDescriptionChange &&
+    literalDraft.trim().length > 0 &&
+    descriptiveDraft.trim().length > 0;
+
+  useEffect(() => {
+    setLiteralDraft(currentLiteral);
+    setDescriptiveDraft(currentDescriptive);
+    setIsEditingDescriptions(false);
+  }, [currentPhoto?.id, currentLiteral, currentDescriptive]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      const height = event?.endCoordinates?.height ?? 0;
+      const target = -Math.max(0, height - 16);
+      Animated.timing(keyboardAnim, {
+        toValue: target,
+        duration: Platform.OS === 'ios' ? (event?.duration ?? 250) : 220,
+        useNativeDriver: true,
+      }).start();
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      Animated.timing(keyboardAnim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }).start();
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const openSheet = () => {
     setSheetVisible(true);
@@ -54,6 +111,7 @@ export default function PhotoViewer({ visible, photos = [], initialIndex = 0, on
   };
 
   const closeSheet = () => {
+    Keyboard.dismiss();
     Animated.parallel([
       Animated.timing(sheetAnim, {
         toValue: SCREEN_HEIGHT,
@@ -93,6 +151,7 @@ export default function PhotoViewer({ visible, photos = [], initialIndex = 0, on
       opacityAnim.setValue(0);
       sheetAnim.setValue(SCREEN_HEIGHT);
       backdropAnim.setValue(0);
+      keyboardAnim.setValue(0);
       setSheetVisible(false);
     }
   }, [visible, initialIndex]);
@@ -110,6 +169,25 @@ export default function PhotoViewer({ visible, photos = [], initialIndex = 0, on
         },
       ]
     );
+  };
+
+  const handleSaveDescriptions = async () => {
+    if (!canSave) return;
+
+    try {
+      setIsSavingDescriptions(true);
+      await onSaveDescriptions({
+        photoId: photoData?.id,
+        literal: literalDraft.trim(),
+        descriptive: descriptiveDraft.trim(),
+      });
+      setIsEditingDescriptions(false);
+      Alert.alert('Saved', 'Descriptions and embeddings updated.');
+    } catch (error) {
+      Alert.alert('Save failed', error.message || 'Failed to save descriptions');
+    } finally {
+      setIsSavingDescriptions(false);
+    }
   };
 
   if (!visible || !photos?.length) return null;
@@ -197,16 +275,31 @@ export default function PhotoViewer({ visible, photos = [], initialIndex = 0, on
 
             <Animated.View
               style={{
-                transform: [{ translateY: sheetAnim }],
+                transform: [{ translateY: sheetAnim }, { translateY: keyboardAnim }],
                 height: SCREEN_HEIGHT * 0.5,
               }}
               className={`absolute bottom-0 left-0 right-0 z-50 rounded-t-2xl ${colors.sheetBg}`}
             >
               <View className={`flex-row items-center justify-between px-5 py-4 border-b ${colors.sheetBorder}`}>
                 <Text className={`text-lg font-semibold ${colors.title}`}>Photo Info</Text>
-                <Pressable onPress={closeSheet}>
-                  <Ionicons name="close" size={22} color={colors.icon} />
-                </Pressable>
+                <View className="flex-row items-center gap-3">
+                  <Pressable
+                    onPress={() => {
+                      if (isEditingDescriptions) {
+                        setLiteralDraft(currentLiteral);
+                        setDescriptiveDraft(currentDescriptive);
+                      }
+                      setIsEditingDescriptions((prev) => !prev);
+                    }}
+                    disabled={isSavingDescriptions}
+                    style={{ opacity: isSavingDescriptions ? 0.5 : 1 }}
+                  >
+                    <Ionicons name={isEditingDescriptions ? 'create' : 'create-outline'} size={20} color={colors.icon} />
+                  </Pressable>
+                  <Pressable onPress={closeSheet}>
+                    <Ionicons name="close" size={22} color={colors.icon} />
+                  </Pressable>
+                </View>
               </View>
 
               <ScrollView
@@ -214,17 +307,64 @@ export default function PhotoViewer({ visible, photos = [], initialIndex = 0, on
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: 40 }}
               >
-                {photoData?.literal && (
-                  <View className="mb-4">
-                    <Text className={`text-sm font-semibold tracking-wider mb-1 ${colors.title}`}>Literal</Text>
-                    <Text className={`text-md leading-relaxed ${colors.body}`}>{photoData.literal}</Text>
-                  </View>
-                )}
-                {photoData?.descriptive && (
-                  <View className="mb-4">
-                    <Text className={`text-sm font-semibold tracking-wider mb-1 ${colors.title}`}>Descriptive</Text>
-                    <Text className={`text-md leading-relaxed ${colors.body}`}>{photoData.descriptive}</Text>
-                  </View>
+                {isEditingDescriptions ? (
+                  <>
+                    <View className="mb-4">
+                      <Text className={`text-sm font-semibold tracking-wider mb-1 ${colors.title}`}>Literal</Text>
+                      <TextInput
+                        value={literalDraft}
+                        onChangeText={setLiteralDraft}
+                        multiline
+                        textAlignVertical="top"
+                        placeholder="Enter literal description"
+                        placeholderTextColor={colors.inputPlaceholder}
+                        className={`${colors.inputBg} rounded-xl px-3 py-3 ${colors.inputText} text-sm`}
+                        style={{ minHeight: 90 }}
+                      />
+                    </View>
+                    <View className="mb-4">
+                      <Text className={`text-sm font-semibold tracking-wider mb-1 ${colors.title}`}>Descriptive</Text>
+                      <TextInput
+                        value={descriptiveDraft}
+                        onChangeText={setDescriptiveDraft}
+                        multiline
+                        textAlignVertical="top"
+                        placeholder="Enter descriptive description"
+                        placeholderTextColor={colors.inputPlaceholder}
+                        className={`${colors.inputBg} rounded-xl px-3 py-3 ${colors.inputText} text-sm`}
+                        style={{ minHeight: 110 }}
+                      />
+                    </View>
+                    {hasDescriptionChange && (
+                      <Pressable
+                        onPress={handleSaveDescriptions}
+                        disabled={!canSave}
+                        className="mb-4 rounded-xl py-3 items-center justify-center bg-black"
+                        style={{ opacity: canSave ? 1 : 0.45 }}
+                      >
+                        {isSavingDescriptions ? (
+                          <ActivityIndicator size="small" color="white" />
+                        ) : (
+                          <Text className="text-white text-sm font-semibold">Save Descriptions</Text>
+                        )}
+                      </Pressable>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {photoData?.literal && (
+                      <View className="mb-4">
+                        <Text className={`text-sm font-semibold tracking-wider mb-1 ${colors.title}`}>Literal</Text>
+                        <Text className={`text-md leading-relaxed ${colors.body}`}>{photoData.literal}</Text>
+                      </View>
+                    )}
+                    {photoData?.descriptive && (
+                      <View className="mb-4">
+                        <Text className={`text-sm font-semibold tracking-wider mb-1 ${colors.title}`}>Descriptive</Text>
+                        <Text className={`text-md leading-relaxed ${colors.body}`}>{photoData.descriptive}</Text>
+                      </View>
+                    )}
+                  </>
                 )}
                 <View className="mb-4">
                   <Text className={`text-xs font-semibold uppercase tracking-wider mb-1 ${colors.title}`}>Manual Description</Text>
