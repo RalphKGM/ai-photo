@@ -128,23 +128,34 @@ export default function PhotoViewer({ visible, photos = [], initialIndex = 0, on
             }}
           >
             {photos.map((photo, index) => {
-              const uri = photo.uri ?? photo.item?.uri;
+              const previewUri = photo.item?.previewUri ?? photo.previewUri;
+              const fullUri = photo.item?.fullUri ?? photo.fullUri;
               const key = photo.item?.id ?? photo.id ?? index;
-
-              // only render the current page and its immediate neighbors.
-              const shouldRenderImage = Math.abs(index - currentIndex) <= 3;
+              const shouldRender = Math.abs(index - currentIndex) <= 3;
 
               return (
                 <View key={key} className="flex-1 justify-center items-center">
-                  {uri && shouldRenderImage ? (
-                    <Image
-                      source={{ uri }}
-                      style={{ width: '100%', height: '100%' }}
-                      contentFit="contain"
-                      cachePolicy="memory-disk"
-                    />
-                  ) : uri && !shouldRenderImage ? (
-                    // placeholder for offscreen pages to avoid heavy decoding on open
+                  {shouldRender && previewUri ? (
+                    <>
+                      {/* preview shows instantly from prefetch */}
+                      <Image
+                        source={{ uri: previewUri }}
+                        style={{ width: '100%', height: '100%', position: 'absolute' }}
+                        contentFit="contain"
+                        cachePolicy="memory-disk"
+                      />
+                      {/* full-res fades in on top once decoded */}
+                      {fullUri && (
+                        <Image
+                          source={{ uri: fullUri }}
+                          style={{ width: '100%', height: '100%', position: 'absolute' }}
+                          contentFit="contain"
+                          cachePolicy="memory-disk"
+                          transition={300}
+                        />
+                      )}
+                    </>
+                  ) : !shouldRender ? (
                     <View className="w-full h-full bg-black" />
                   ) : (
                     <ActivityIndicator size="large" color="white" />
@@ -250,4 +261,3 @@ export default function PhotoViewer({ visible, photos = [], initialIndex = 0, on
     </Modal>
   );
 }
-

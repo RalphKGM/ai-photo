@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useEffect } from 'react';
 import { View, Dimensions, Pressable, Text } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,7 +7,6 @@ import { useThemeContext } from '../context/ThemeContext.jsx';
 const { width: windowWidth } = Dimensions.get('window');
 
 function PhotoItem({
-  localUri,
   numColumns,
   onPress,
   onLongPress,
@@ -19,7 +18,14 @@ function PhotoItem({
   const size = (windowWidth - 4) / numColumns - 4;
 
   const isVideo = item?.isVideo || item?.mediaType === 'video';
-  const isGif = (item?.uri || localUri || '').toLowerCase().endsWith('.gif');
+  const isGif = (item?.thumbnailUri || item?.uri || '').toLowerCase().endsWith('.gif');
+
+  // prefetch previewUri so it's in memory when viewer opens
+  useEffect(() => {
+    if (item?.previewUri) {
+      Image.prefetch(item.previewUri);
+    }
+  }, [item?.previewUri]);
 
   const handlePress = useCallback(() => {
     onPress({ item });
@@ -31,24 +37,24 @@ function PhotoItem({
 
   return (
     <Pressable onPress={handlePress} onLongPress={handleLongPress} delayLongPress={180}>
-      <View className={`m-0.5 overflow-hidden ${isDarkMode ? 'bg-zinc-700' : 'bg-gray-200'}`} style={{ width: size, height: size }}>
-        {localUri && (
-          <Image
-            source={{ uri: localUri }}
-            style={{ width: size, height: size }}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-          />
-        )}
+      <View
+        className={`m-0.5 overflow-hidden ${isDarkMode ? 'bg-zinc-700' : 'bg-gray-200'}`}
+        style={{ width: size, height: size }}
+      >
+        <Image
+          source={{ uri: item.thumbnailUri }}
+          style={{ width: size, height: size }}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
+        />
 
-        {/* Video badge */}
         {isVideo && (
           <View className="absolute bottom-1 right-1 bg-black/55 rounded p-0.5">
             <Ionicons name="play" size={12} color="white" />
           </View>
         )}
 
-        {/* GIF badge */}
         {isGif && !isVideo && (
           <View className="absolute bottom-1 right-1 bg-black/55 rounded px-1 py-0.5">
             <Text className="text-white text-[9px] font-bold">GIF</Text>

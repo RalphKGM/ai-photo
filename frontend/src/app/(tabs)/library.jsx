@@ -72,30 +72,45 @@ export default function Library() {
   }, [photos]);
 
   const handleGetPhotos = async () => {
+    const t0 = Date.now();
+
     if (permissionResponse?.status !== 'granted') {
       const { status } = await requestPermission();
       if (status !== 'granted') return;
     }
 
     // check cache first
+    const t1 = Date.now();
     const cached = await getCachedPhotos();
+    console.log(`[1] getCachedPhotos took ${Date.now() - t1}ms — ${cached?.length ?? 0} items`);
 
     if (cached && cached.length > 0) {
       // show photos from cache immediately
+      const t2 = Date.now();
       const sortedCached = cached
         .filter((photo) => photo?.id)
         .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
       setPhotos(sortedCached);
+      console.log(`[2] setPhotos from cache took ${Date.now() - t2}ms — ${sortedCached.length} photos`);
 
       // verify if nasa db yung photos (photo_id)
+      const t3 = Date.now();
       const dbPhotos = await getAllPhotos();
+      console.log(`[3] getAllPhotos took ${Date.now() - t3}ms — ${dbPhotos?.length ?? 0} photos`);
+
       const dbPhotoIds = new Set(dbPhotos.map((p) => p.id));
       const cachedIds = new Set(cached.map((p) => p.id));
 
       const validCached = cached.filter((p) => dbPhotoIds.has(p.id));
       const missingFromCache = dbPhotos.filter((p) => !cachedIds.has(p.id));
+      console.log(`[4] missing from cache: ${missingFromCache.length}`);
+
       // fetch URIs for missing photos
-      const missingWithUris = await Promise.all(missingFromCache.map(resolvePhotoUri));
+      const t4 = Date.now();
+      const missingWithUris = missingFromCache.length > 0
+        ? await Promise.all(missingFromCache.map(resolvePhotoUri))
+        : [];
+      console.log(`[5] resolvePhotoUri for missing took ${Date.now() - t4}ms`);
 
       // merge valid cached + missing photos
       const merged = [...validCached, ...missingWithUris]
@@ -103,20 +118,43 @@ export default function Library() {
         .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
       setPhotos(merged);
+
+      const t5 = Date.now();
       await setCachedPhotos(merged);
+      console.log(`[6] setCachedPhotos took ${Date.now() - t5}ms`);
+
+      console.log(`[TOTAL] handleGetPhotos (cache hit) took ${Date.now() - t0}ms`);
       return;
     }
 
-    // fallback to supabase (if no photos in cache)
+    // fallback to supabase (if no photos in cache) — show photos one by one as they resolve
+    const t6 = Date.now();
     const assets = await getAllPhotos();
-    const photosWithUris = await Promise.all(assets.map(resolvePhotoUri));
+    console.log(`[7] getAllPhotos (no cache) took ${Date.now() - t6}ms — ${assets?.length ?? 0} photos`);
 
-    const sorted = photosWithUris
-      .filter(Boolean)
-      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-    setPhotos(sorted);
-    await setCachedPhotos(sorted);
+    if (!Array.isArray(assets) || assets.length === 0) return;
+
+    const t7 = Date.now();
+    const resolved = [];
+
+    for (let i = 0; i < assets.length; i++) {
+      const result = await resolveThumbnailOnly(assets[i]);
+      if (!result) continue;
+      resolved.push(result);
+
+      const sorted = [...resolved].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      setPhotos(sorted);
+    }
+
+    console.log(`[8] resolved all photos one by one took ${Date.now() - t7}ms`);
+
+    await setCachedPhotos(resolved);
+    console.log(`[TOTAL] handleGetPhotos (no cache) took ${Date.now() - t0}ms`);
+
+    // generate previews in background after grid is visible
+    generatePreviewsInBackground(resolved);
   };
+
 
   useEffect(() => {
     handleGetPhotos();
@@ -286,7 +324,6 @@ export default function Library() {
   const renderPhotoItem = useCallback(
     ({ item }) => (
       <PhotoItem
-        localUri={item.uri ?? null}
         numColumns={numColumns}
         onPress={handlePressPhoto}
         onLongPress={handleLongPressPhoto}
