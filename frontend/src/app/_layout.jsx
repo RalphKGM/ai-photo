@@ -1,5 +1,6 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { supabase } from '../config/supabase.js';
 import { PhotoProvider } from '../context/PhotoContext.jsx';
 import { ThemeProvider, useThemeContext } from '../context/ThemeContext.jsx';
@@ -50,10 +51,12 @@ function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <PhotoProvider>
-        <RootNavigator />
-      </PhotoProvider>
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <PhotoProvider>
+          <RootNavigator />
+        </PhotoProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
