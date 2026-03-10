@@ -1,51 +1,81 @@
+import OpenAI from 'openai';
 import { generateEmbedding } from './ai/generateEmbedding.js';
 
-export const searchImage = async (user, supabase, query) => {
-    if (!query || query.trim() === '') {
-        const { data, error } = await supabase
-            .from('photo')
-            .select('id, photo_id, descriptive, literal, created_at')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: true });
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+});
 
-        if (error) throw error;
-        console.log(`Returning all ${data?.length || 0} photos`);
-        return { results: data, count: data?.length || 0 };
+async function rerankWithGPT(query, candidates) {
+    if (!candidates || candidates.length === 0) return [];
+
+    const candidateList = candidates.map((c, i) =>
+        `[${i + 1}] Tags: ${c.tags || 'none'}\nVisual: ${(c.literal || '').substring(0, 150)}\nContext: ${(c.descriptive || '').substring(0, 100)}`
+    ).join('\n\n');
+
+    try {
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [{
+                role: 'user',
+                content: `You are a photo search relevance judge.
+
+Query: "${query}"
+
+Below are photo candidates. Return the numbers of photos that match the query.
+
+RULES:
+- Be LENIENT with vague or general queries (e.g. "dog", "my pet dog") — include any photo that could reasonably match
+- Be STRICT with specific queries (e.g. "dog behind gate", "valorant scoreboard") — only include exact matches
+- If the query mentions a person ("me", "my", "I") but the photo has no person, still include it if the subject matches
+- Prefer returning too many results over too few
+
+${candidateList}
+
+Reply with ONLY a comma-separated list of numbers (e.g. "1,3,5") or "none" if truly nothing matches.
+Numbers only, no explanation.`
+            }],
+            max_tokens: 60,
+        });
+
+        const raw = response.choices[0].message.content?.trim();
+
+        if (!raw || raw.toLowerCase() === 'none') return [];
+
+        const keepIndices = new Set(
+            raw.split(',')
+               .map(n => parseInt(n.trim()) - 1)
+               .filter(n => !isNaN(n) && n >= 0 && n < candidates.length)
+        );
+
+        return candidates.filter((_, i) => keepIndices.has(i));
+
+    } catch (err) {
+        console.warn('Rerank failed, returning all candidates:', err.message);
+        return candidates;
     }
+}
 
-    console.log('Search query:', query);
-    const queryEmbedding = await generateEmbedding(query);
-    console.log('Query embedding generated (dimension:', queryEmbedding.length, ')');
+export const searchImage = async (user, supabase, query) => {
+    const normalizedQuery = query.trim();
 
-    const { data: descriptiveResults, error: descError } = await supabase.rpc(
-        'match_descriptive_photos',
-        {
-            query_embedding: queryEmbedding,
-            match_threshold: 0.35,
-            match_count: 20
-        }
-    );
-    if (descError) throw descError;
-    console.log(`Descriptive results: ${descriptiveResults?.length || 0} matches`);
+    const queryEmbedding = await generateEmbedding(normalizedQuery);
 
-    const { data: literalResults, error: litError } = await supabase.rpc(
-        'match_literal_photos',
-        {
-            query_embedding: queryEmbedding,
-            match_threshold: 0.5,
-            match_count: 20
-        }
-    );
-    if (litError) throw litError;
-    console.log(`Literal results: ${literalResults?.length || 0} matches`);
+    const { data, error } = await supabase.rpc('hybrid_search_photos', {
+        query_text: normalizedQuery,
+        query_embedding: queryEmbedding,
+        match_count: 20,
+        user_id: user.id,
+        full_text_weight: 1.0,
+        semantic_weight: 2.0,
+        rrf_k: 50,
+    });
 
-    const allResults = [...(descriptiveResults || []), ...(literalResults || [])];
-    const uniqueResults = Array.from(
-        new Map(allResults.map(item => [item.id, item])).values()
-    );
-    uniqueResults.sort((a, b) => b.similarity - a.similarity);
+    console.log(`Hybrid search results: ${data?.length ?? 0}`);
+    if (error) throw error;
 
-    console.log(`Total unique results: ${uniqueResults.length}`);
+    if (!data || data.length === 0) return { results: [], count: 0 };
 
-    return { results: uniqueResults, count: uniqueResults.length };
+    const reranked = await rerankWithGPT(normalizedQuery, data);
+
+    return { results: reranked, count: reranked.length };
 };

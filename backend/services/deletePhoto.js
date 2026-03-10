@@ -1,7 +1,7 @@
 export const deletePhoto = async (user, supabase, id) => {
     if (!id) throw new Error('Photo ID is required');
 
-    console.log('Deleting photo:', id);
+    console.log('Deleting photo id:', id);
 
     const { data, error } = await supabase
         .from('photo')

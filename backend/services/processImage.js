@@ -2,27 +2,38 @@ import { getCompressedImageBuffer } from '../utils/compressImage.js';
 import { describeImage } from './ai/describeImage.js';
 import { generateEmbedding } from './ai/generateEmbedding.js';
 
-export const processImage = async (user, supabase, image, photo_id, manualDescription = null) => {
+export const processImage = async (user, supabase, image, device_asset_id) => {
     const start = Date.now();
     if (!user || !user.id) throw new Error('Invalid user object or missing user.id');
+
     const compressedImage = await getCompressedImageBuffer(image);
+
+    // Check for duplicate device_asset_id instead of phash
+    const { data: existing } = await supabase
+        .from('photo')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('device_asset_id', device_asset_id)
+        .maybeSingle();
+
+    if (existing) throw new Error('DUPLICATE_IMAGE');
 
     const description = await describeImage(compressedImage);
 
     const literalStart = description.indexOf('[LITERAL]');
     const descriptiveStart = description.indexOf('[DESCRIPTIVE]');
     const tagsStart = description.indexOf('[TAGS]');
+    const categoryStart = description.indexOf('[CATEGORY]');
 
-    let literal = description.substring(literalStart + 9, descriptiveStart).trim();
-    let descriptive = description.substring(descriptiveStart + 13, tagsStart).trim();
-    const tags = description.substring(tagsStart + 6).trim().toLowerCase();
+    const literal = description.substring(literalStart + 9, descriptiveStart).trim();
+    const descriptive = description.substring(descriptiveStart + 13, tagsStart).trim();
+    const tags = description.substring(tagsStart + 6, categoryStart).trim().toLowerCase();
+    const category = description.substring(categoryStart + 10).trim().toLowerCase();
 
-    if (manualDescription && manualDescription.trim()) {
-        descriptive = `${descriptive} User note: ${manualDescription.trim()}`;
-    }
-
-    const descriptiveEmbedding = await generateEmbedding(descriptive);
-    const literalEmbedding = await generateEmbedding(literal);
+    const [descriptiveEmbedding, literalEmbedding] = await Promise.all([
+        generateEmbedding(descriptive),
+        generateEmbedding(literal),
+    ]);
 
     if (!descriptiveEmbedding || descriptiveEmbedding.length !== 1536) {
         throw new Error(`Invalid descriptive embedding dimension: ${descriptiveEmbedding?.length}`);
@@ -35,11 +46,11 @@ export const processImage = async (user, supabase, image, photo_id, manualDescri
         .from('photo')
         .insert({
             user_id: user.id,
-            photo_id: photo_id, 
+            device_asset_id,
             descriptive,
             literal,
             tags,
-            manual_description: manualDescription?.trim() || null,
+            category,
             descriptive_embedding: descriptiveEmbedding,
             literal_embedding: literalEmbedding,
         })
@@ -48,8 +59,6 @@ export const processImage = async (user, supabase, image, photo_id, manualDescri
 
     if (insertError) throw insertError;
 
-    const duration = Date.now() - start;
-    console.log(`processImage: completed in ${duration}ms`);
-
+    console.log(`processImage: completed in ${Date.now() - start}ms`);
     return insertData;
 };
