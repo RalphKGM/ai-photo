@@ -3,7 +3,7 @@ export const getAlbums = async (user, supabase) => {
     .from('album')
     .select('id, name, cover_photo_id, created_at, updated_at, album_photo(photo_id)')
     .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: true });
 
   if (error) throw error;
 

@@ -59,6 +59,7 @@ const DARK = {
   tagBg: 'bg-zinc-700',
   tagText: 'text-zinc-300',
   placeholderBg: 'bg-zinc-700',
+  dotBg: 'bg-[#F8FAFC]',
 };
 
 const LIGHT = {
@@ -122,6 +123,7 @@ const LIGHT = {
   tagBg: 'bg-gray-100',
   tagText: 'text-gray-600',
   placeholderBg: 'bg-gray-200',
+  dotBg: 'bg-[#111111]',
 };
 
 export const getThemeColors = (isDarkMode) => {

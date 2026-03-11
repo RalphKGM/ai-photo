@@ -4,11 +4,23 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { getThemeColors } from '../../theme/appColors.js';
 
-const CARD_SIZE = 180;
+export const ALBUM_CARD_SIZE = 180;
 
 export default function AlbumCard({ album, onPress, isDarkMode = false }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const colors = getThemeColors(isDarkMode);
+  const coverPhoto =
+    album.photos?.find((photo) => photo.id === album.cover_photo_id) ||
+    album.coverPhoto ||
+    album.photos?.[0] ||
+    null;
+  const coverUri = coverPhoto?.uri
+    ? coverPhoto.uri
+    : coverPhoto?.device_asset_id
+      ? Platform.OS === 'android'
+        ? `content://media/external/images/media/${coverPhoto.device_asset_id}`
+        : `ph://${coverPhoto.device_asset_id}`
+      : null;
 
   const handlePressIn = () =>
     Animated.spring(scaleAnim, { toValue: 0.95, useNativeDriver: true, speed: 30 }).start();
@@ -20,18 +32,17 @@ export default function AlbumCard({ album, onPress, isDarkMode = false }) {
       onPress={() => onPress(album)}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      style={{ width: CARD_SIZE }}
+      className="w-[180px]"
     >
       <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-        <View
-          style={{ width: CARD_SIZE, height: CARD_SIZE }}
-          className={`rounded-xl overflow-hidden ${colors.placeholderBg}`}
-        >
-          {album.photos.length > 0 ? (
+        <View className={`w-[180px] h-[180px] rounded-xl overflow-hidden ${colors.placeholderBg}`}>
+          {coverUri ? (
             <Image
-              source={{ uri: (() => { const p = album.photos[0]; return p.uri ?? (Platform.OS === 'android' ? `content://media/external/images/media/${p.device_asset_id}` : `ph://${p.device_asset_id}`); })() }}
-              style={{ width: CARD_SIZE, height: CARD_SIZE }}
+              source={{ uri: coverUri }}
+              style={{ width: 180, height: 180 }}  // ← explicit style, not className
               contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={150}
             />
           ) : (
             <View className="flex-1 items-center justify-center">
