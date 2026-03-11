@@ -38,6 +38,9 @@ export default function Albums() {
   const [newAlbumName, setNewAlbumName] = useState('');
   const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
   const [currentAlbumPage, setCurrentAlbumPage] = useState(0);
+  const [isAddPhotosVisible, setIsAddPhotosVisible] = useState(false);
+  const [selectedAddPhotoIds, setSelectedAddPhotoIds] = useState([]);
+  const [isAddingPhotos, setIsAddingPhotos] = useState(false);
 
   const slideAnim = useRef(new Animated.Value(SCREEN_WIDTH)).current;
 
@@ -97,6 +100,13 @@ export default function Albums() {
   useEffect(() => {
     setAlbums((prev) => hydrateAlbums(prev));
   }, [photoMap, hydrateAlbums]);
+
+  useEffect(() => {
+    if (!openAlbum?.id) {
+      setIsAddPhotosVisible(false);
+      setSelectedAddPhotoIds([]);
+    }
+  }, [openAlbum?.id]);
 
   const albumPages = useMemo(() => {
     const pages = [];
@@ -202,6 +212,17 @@ export default function Albums() {
     setIsCreateAlbumVisible(false);
   }, [isCreatingAlbum]);
 
+  const openAddPhotos = useCallback(() => {
+    if (!openAlbum?.id) return;
+    setSelectedAddPhotoIds([]);
+    setIsAddPhotosVisible(true);
+  }, [openAlbum?.id]);
+
+  const closeAddPhotos = useCallback(() => {
+    if (isAddingPhotos) return;
+    setIsAddPhotosVisible(false);
+  }, [isAddingPhotos]);
+
 
   const toggleSelectedPhoto = useCallback((photoId) => {
     setSelectedPhotoIds((prev) => {
@@ -257,6 +278,58 @@ export default function Albums() {
       />
     ),
     [toggleSelectedPhoto, selectedPhotoIds]
+  );
+
+  const availablePhotos = useMemo(() => {
+    if (!openAlbum?.id) return [];
+    const existingIds = new Set(openAlbum.photo_ids || openAlbum.photos?.map((p) => p.id) || []);
+    return photos.filter((photo) => photo?.id && !existingIds.has(photo.id));
+  }, [openAlbum, photos]);
+
+  const toggleSelectedAddPhoto = useCallback((photoId) => {
+    setSelectedAddPhotoIds((prev) => {
+      if (prev.includes(photoId)) {
+        return prev.filter((id) => id !== photoId);
+      }
+      return [...prev, photoId];
+    });
+  }, []);
+
+  const handleAddPhotos = useCallback(async () => {
+    if (!openAlbum?.id) return;
+    if (selectedAddPhotoIds.length === 0) {
+      Alert.alert('Select photos', 'Please select at least one photo.');
+      return;
+    }
+
+    try {
+      setIsAddingPhotos(true);
+      await addPhotosToAlbum({ albumId: openAlbum.id, photoIds: selectedAddPhotoIds });
+      const addedPhotos = selectedAddPhotoIds.map((id) => photoMap.get(id)).filter(Boolean);
+      const updatedPhotos = [...(openAlbum.photos || []), ...addedPhotos];
+      handleAlbumPhotosChange(updatedPhotos, []);
+      setIsAddPhotosVisible(false);
+      setSelectedAddPhotoIds([]);
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to add photos');
+    } finally {
+      setIsAddingPhotos(false);
+    }
+  }, [openAlbum, selectedAddPhotoIds, photoMap, handleAlbumPhotosChange]);
+
+  const renderAddPhotoItem = useCallback(
+    ({ item }) => (
+      <PhotoItem
+        localUri={item.uri ?? null}
+        numColumns={CREATE_COLUMNS}
+        onPress={() => toggleSelectedAddPhoto(item.id)}
+        onLongPress={() => toggleSelectedAddPhoto(item.id)}
+        item={item}
+        isSelected={selectedAddPhotoIds.includes(item.id)}
+        selectionMode
+      />
+    ),
+    [toggleSelectedAddPhoto, selectedAddPhotoIds]
   );
 
 
@@ -337,7 +410,13 @@ export default function Albums() {
           className={`absolute inset-0 z-10 ${colors.pageBg}`}
           style={{ transform: [{ translateX: slideAnim }] }}
         >
-          <AlbumDetail album={openAlbum} onBack={handleCloseAlbum} onPhotosChange={handleAlbumPhotosChange} />
+          <AlbumDetail
+            album={openAlbum}
+            onBack={handleCloseAlbum}
+            onPhotosChange={handleAlbumPhotosChange}
+            onAddPhotos={openAddPhotos}
+            canAddPhotos={availablePhotos.length > 0}
+          />
         </Animated.View>
       )}
 
@@ -388,6 +467,61 @@ export default function Albums() {
               renderItem={renderCreatePhotoItem}
               ListHeaderComponent={<View className="h-1" />}
               ListFooterComponent={<View className="h-[120px]" />}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={isAddPhotosVisible}
+        animationType="slide"
+        onRequestClose={closeAddPhotos}
+      >
+        <View className={`flex-1 ${colors.pageBg}`}>
+          <View className={`pt-16 pb-4 px-4 border-b ${colors.headerBg} ${colors.border}`}>
+            <View className="flex-row items-center justify-between">
+              <Pressable onPress={closeAddPhotos} disabled={isAddingPhotos} className="py-1 pr-3">
+                <Text className={`text-base ${colors.title}`}>Cancel</Text>
+              </Pressable>
+              <Text className={`text-lg font-semibold ${colors.title}`}>Add Photos</Text>
+              <Pressable
+                onPress={handleAddPhotos}
+                disabled={isAddingPhotos}
+                className={`py-1 pl-3 ${isAddingPhotos ? 'opacity-40' : 'opacity-100'}`}
+              >
+                {isAddingPhotos ? (
+                  <ActivityIndicator size="small" color={colors.icon} />
+                ) : (
+                  <Text className="text-base font-semibold text-blue-500">Add</Text>
+                )}
+              </Pressable>
+            </View>
+            <Text className={`text-xs mt-2 ${colors.count}`}>
+              {selectedAddPhotoIds.length}{' '}
+              {selectedAddPhotoIds.length === 1 ? 'photo selected' : 'photos selected'}
+            </Text>
+          </View>
+
+          <View className="px-1">
+            <FlatList
+              data={availablePhotos}
+              numColumns={CREATE_COLUMNS}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+              renderItem={renderAddPhotoItem}
+              ListHeaderComponent={<View className="h-1" />}
+              ListFooterComponent={<View className="h-[120px]" />}
+              ListEmptyComponent={
+                <View className="flex-1 items-center justify-center px-6 pt-24">
+                  <Ionicons name="images-outline" size={50} color={colors.emptyIcon} />
+                  <Text className={`text-base font-semibold mt-4 ${colors.textPrimary}`}>
+                    No photos to add
+                  </Text>
+                  <Text className={`text-sm text-center mt-2 ${colors.textSecondary}`}>
+                    All your photos are already in this album.
+                  </Text>
+                </View>
+              }
             />
           </View>
         </View>

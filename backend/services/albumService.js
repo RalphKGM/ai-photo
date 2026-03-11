@@ -2,8 +2,7 @@ export const getAlbums = async (user, supabase) => {
   const { data, error } = await supabase
     .from('album')
     .select('id, name, cover_photo_id, created_at, updated_at, album_photo(photo_id)')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: true });
+    .eq('user_id', user.id);
 
   if (error) throw error;
 
@@ -78,8 +77,20 @@ export const addPhotosToAlbum = async (user, supabase, albumId, photoIds = []) =
 
   if (error) throw error;
 
+  const latestPhotoId = validPhotoIds[validPhotoIds.length - 1] || null;
+  if (latestPhotoId) {
+    const { error: updateError } = await supabase
+      .from('album')
+      .update({ cover_photo_id: latestPhotoId })
+      .eq('id', albumId)
+      .eq('user_id', user.id);
+
+    if (updateError) throw updateError;
+  }
+
   return {
     album_id: albumId,
     added_count: validPhotoIds.length,
+    cover_photo_id: latestPhotoId,
   };
 };

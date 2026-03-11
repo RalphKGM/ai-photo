@@ -21,7 +21,7 @@ import PhotoItem from '../../components/PhotoItem.jsx';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_COLUMNS = 4;
 
-export default function AlbumDetail({ album, onBack, onPhotosChange }) {
+export default function AlbumDetail({ album, onBack, onPhotosChange, onAddPhotos, canAddPhotos }) {
   const insets = useSafeAreaInsets();
   const { isDarkMode } = useThemeContext();
   const colors = getThemeColors(isDarkMode);
@@ -30,9 +30,8 @@ export default function AlbumDetail({ album, onBack, onPhotosChange }) {
       return album.photos || [];
     }
 
-    const total = album.photo_ids.length;
     const orderMap = new Map(
-      album.photo_ids.map((id, index) => [id, total - 1 - index])
+      album.photo_ids.map((id, index) => [id, index])
     );
     return (album.photos || [])
       .slice()
@@ -241,7 +240,15 @@ export default function AlbumDetail({ album, onBack, onPhotosChange }) {
             {album.name}
           </Animated.Text>
 
-          <View className="w-[70px]" />
+          <Pressable
+            onPress={onAddPhotos}
+            disabled={!canAddPhotos}
+            hitSlop={12}
+            className="w-[70px] items-end"
+            style={{ opacity: canAddPhotos ? 1 : 0.4 }}
+          >
+            <Ionicons name="add" size={26} color={canAddPhotos ? colors.icon : '#9CA3AF'} />
+          </Pressable>
         </View>
       )}
 
