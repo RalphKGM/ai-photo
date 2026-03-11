@@ -20,7 +20,14 @@ import { getThemeColors } from '../../theme/appColors.js';
 import AlbumDetail from '../../components/albums/AlbumDetail.jsx';
 import AlbumCard from '../../components/albums/AlbumCard.jsx';
 import PhotoItem from '../../components/PhotoItem.jsx';
-import { addPhotosToAlbum, createAlbum, getAlbums, removePhotosFromAlbum } from '../../service/albumService.js';
+import {
+  addPhotosToAlbum,
+  createAlbum,
+  deleteAlbum,
+  getAlbums,
+  removePhotosFromAlbum,
+  renameAlbum,
+} from '../../service/albumService.js';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CREATE_COLUMNS = 4;
@@ -41,6 +48,11 @@ export default function Albums() {
   const [isAddPhotosVisible, setIsAddPhotosVisible] = useState(false);
   const [selectedAddPhotoIds, setSelectedAddPhotoIds] = useState([]);
   const [isAddingPhotos, setIsAddingPhotos] = useState(false);
+  const [isAlbumMenuVisible, setIsAlbumMenuVisible] = useState(false);
+  const [isRenameVisible, setIsRenameVisible] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [isRenamingAlbum, setIsRenamingAlbum] = useState(false);
+  const [isDeletingAlbum, setIsDeletingAlbum] = useState(false);
 
   const slideAnim = useRef(new Animated.Value(SCREEN_WIDTH)).current;
 
@@ -105,6 +117,8 @@ export default function Albums() {
     if (!openAlbum?.id) {
       setIsAddPhotosVisible(false);
       setSelectedAddPhotoIds([]);
+      setIsAlbumMenuVisible(false);
+      setIsRenameVisible(false);
     }
   }, [openAlbum?.id]);
 
@@ -222,6 +236,28 @@ export default function Albums() {
     if (isAddingPhotos) return;
     setIsAddPhotosVisible(false);
   }, [isAddingPhotos]);
+
+  const openAlbumMenu = useCallback(() => {
+    if (!openAlbum?.id) return;
+    setIsAlbumMenuVisible(true);
+  }, [openAlbum?.id]);
+
+  const closeAlbumMenu = useCallback(() => {
+    if (isRenamingAlbum || isDeletingAlbum) return;
+    setIsAlbumMenuVisible(false);
+  }, [isRenamingAlbum, isDeletingAlbum]);
+
+  const openRenameModal = useCallback(() => {
+    if (!openAlbum?.id) return;
+    setRenameValue(openAlbum.name || '');
+    setIsAlbumMenuVisible(false);
+    setIsRenameVisible(true);
+  }, [openAlbum]);
+
+  const closeRenameModal = useCallback(() => {
+    if (isRenamingAlbum) return;
+    setIsRenameVisible(false);
+  }, [isRenamingAlbum]);
 
 
   const toggleSelectedPhoto = useCallback((photoId) => {
@@ -356,6 +392,75 @@ export default function Albums() {
     );
   }, [openAlbum]);
 
+  const handleRenameAlbum = useCallback(async () => {
+    if (!openAlbum?.id) return;
+    const name = renameValue.trim();
+    if (!name) {
+      Alert.alert('Album name required', 'Please enter an album name.');
+      return;
+    }
+
+    try {
+      setIsRenamingAlbum(true);
+      const updated = await renameAlbum({ albumId: openAlbum.id, name });
+
+      setAlbums((prev) =>
+        prev.map((album) =>
+          album.id === openAlbum.id
+            ? {
+                ...album,
+                name: updated.name,
+              }
+            : album
+        )
+      );
+
+      setOpenAlbum((prev) =>
+        prev && prev.id === openAlbum.id
+          ? {
+              ...prev,
+              name: updated.name,
+            }
+          : prev
+      );
+
+      setIsRenameVisible(false);
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to rename album');
+    } finally {
+      setIsRenamingAlbum(false);
+    }
+  }, [openAlbum, renameValue]);
+
+  const handleDeleteAlbum = useCallback(() => {
+    if (!openAlbum?.id) return;
+
+    Alert.alert(
+      'Delete album',
+      'Delete this album? Photos will remain in your library.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsDeletingAlbum(true);
+              await deleteAlbum({ albumId: openAlbum.id });
+              setAlbums((prev) => prev.filter((album) => album.id !== openAlbum.id));
+              setOpenAlbum(null);
+            } catch (error) {
+              Alert.alert('Error', error.message || 'Failed to delete album');
+            } finally {
+              setIsDeletingAlbum(false);
+              setIsAlbumMenuVisible(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [openAlbum]);
+
   const renderAddPhotoItem = useCallback(
     ({ item }) => (
       <PhotoItem
@@ -456,6 +561,7 @@ export default function Albums() {
             onAddPhotos={openAddPhotos}
             canAddPhotos={availablePhotos.length > 0}
             onRemovePhotos={handleRemoveFromAlbum}
+            onOpenMenu={openAlbumMenu}
           />
         </Animated.View>
       )}
@@ -562,6 +668,54 @@ export default function Albums() {
                   </Text>
                 </View>
               }
+            />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={isAlbumMenuVisible} transparent animationType="fade" onRequestClose={closeAlbumMenu}>
+        <Pressable className="flex-1 bg-black/40" onPress={closeAlbumMenu}>
+          <View className="flex-1 justify-end">
+            <View className={`mx-4 mb-8 rounded-2xl ${colors.cardBg}`}>
+              <Pressable onPress={openRenameModal} className="px-4 py-4 border-b border-black/10">
+                <Text className={`text-base ${colors.textPrimary}`}>Rename album</Text>
+              </Pressable>
+              <Pressable onPress={handleDeleteAlbum} className="px-4 py-4">
+                <Text className="text-base text-red-500">Delete album</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={isRenameVisible} animationType="slide" onRequestClose={closeRenameModal}>
+        <View className={`flex-1 ${colors.pageBg}`}>
+          <View className={`pt-16 pb-4 px-4 border-b ${colors.headerBg} ${colors.border}`}>
+            <View className="flex-row items-center justify-between">
+              <Pressable onPress={closeRenameModal} disabled={isRenamingAlbum} className="py-1 pr-3">
+                <Text className={`text-base ${colors.title}`}>Cancel</Text>
+              </Pressable>
+              <Text className={`text-lg font-semibold ${colors.title}`}>Rename Album</Text>
+              <Pressable
+                onPress={handleRenameAlbum}
+                disabled={isRenamingAlbum}
+                className={`py-1 pl-3 ${isRenamingAlbum ? 'opacity-40' : 'opacity-100'}`}
+              >
+                {isRenamingAlbum ? (
+                  <ActivityIndicator size="small" color={colors.icon} />
+                ) : (
+                  <Text className="text-base font-semibold text-blue-500">Save</Text>
+                )}
+              </Pressable>
+            </View>
+            <TextInput
+              value={renameValue}
+              onChangeText={setRenameValue}
+              placeholder="Album name"
+              placeholderTextColor={colors.inputPlaceholder}
+              className={`mt-3 rounded-xl px-4 py-3 ${colors.inputBg} ${colors.inputText}`}
+              editable={!isRenamingAlbum}
+              returnKeyType="done"
             />
           </View>
         </View>

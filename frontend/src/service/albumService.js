@@ -65,3 +65,33 @@ export const removePhotosFromAlbum = async ({ albumId, photoIds }) => {
   if (!response.ok) throw new Error(data.error || 'Failed to remove photos from album');
   return data;
 };
+
+export const renameAlbum = async ({ albumId, name }) => {
+  const token = await getSession();
+  const response = await fetch(`${API_URL}/api/albums/${albumId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ name }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'Failed to rename album');
+  return data.album;
+};
+
+export const deleteAlbum = async ({ albumId }) => {
+  const token = await getSession();
+  const response = await fetch(`${API_URL}/api/albums/${albumId}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'Failed to delete album');
+  return data;
+};

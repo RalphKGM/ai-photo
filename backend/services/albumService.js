@@ -157,3 +157,51 @@ export const removePhotosFromAlbum = async (user, supabase, albumId, photoIds = 
     cover_photo_id: latestPhotoId,
   };
 };
+
+export const renameAlbum = async (user, supabase, albumId, name) => {
+  const safeName = name?.trim();
+  if (!albumId) throw new Error('Album ID is required');
+  if (!safeName) throw new Error('Album name is required');
+
+  const { data, error } = await supabase
+    .from('album')
+    .update({ name: safeName })
+    .eq('id', albumId)
+    .eq('user_id', user.id)
+    .select('id, name, cover_photo_id, created_at, updated_at')
+    .single();
+
+  if (error) throw error;
+  if (!data) throw new Error('Album not found');
+  return data;
+};
+
+export const deleteAlbum = async (user, supabase, albumId) => {
+  if (!albumId) throw new Error('Album ID is required');
+
+  const { data: album, error: albumError } = await supabase
+    .from('album')
+    .select('id, user_id')
+    .eq('id', albumId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (albumError || !album) throw new Error('Album not found');
+
+  const { error: relError } = await supabase
+    .from('album_photo')
+    .delete()
+    .eq('album_id', albumId);
+
+  if (relError) throw relError;
+
+  const { error: deleteError } = await supabase
+    .from('album')
+    .delete()
+    .eq('id', albumId)
+    .eq('user_id', user.id);
+
+  if (deleteError) throw deleteError;
+
+  return { album_id: albumId };
+};
