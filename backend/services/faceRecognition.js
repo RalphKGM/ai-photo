@@ -2,6 +2,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 import canvas from 'canvas';
+import { convertHeicImage } from '../utils/compressImage.js';
 
 const require = createRequire(import.meta.url);
 const faceapi = require('face-api.js');
@@ -11,6 +12,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MODELS_DIR = path.join(__dirname, '../models/face');
 
 let modelsLoaded = false;
+
+const isHeic = (buffer) => {
+    if (!buffer || buffer.length < 12) return false;
+    return buffer.slice(4, 12).toString().includes('ftypheic');
+};
+
+const normalizeImageBuffer = async (buffer) => {
+    if (!isHeic(buffer)) return buffer;
+    return await convertHeicImage(buffer);
+};
 
 const initFaceApi = async () => {
     if (modelsLoaded) return;
@@ -29,7 +40,8 @@ const initFaceApi = async () => {
 };
 
 const bufferToCanvas = async (buffer) => {
-    const img = await loadImage(buffer);
+    const normalized = await normalizeImageBuffer(buffer);
+    const img = await loadImage(normalized);
     const cnv = createCanvas(img.width, img.height);
     cnv.getContext('2d').drawImage(img, 0, 0);
     return cnv;
