@@ -94,3 +94,66 @@ export const addPhotosToAlbum = async (user, supabase, albumId, photoIds = []) =
     cover_photo_id: latestPhotoId,
   };
 };
+
+export const removePhotosFromAlbum = async (user, supabase, albumId, photoIds = []) => {
+  if (!albumId) throw new Error('Album ID is required');
+  if (!Array.isArray(photoIds) || photoIds.length === 0) {
+    throw new Error('photoIds is required');
+  }
+
+  const uniquePhotoIds = [...new Set(photoIds.filter(Boolean))];
+
+  const { data: album, error: albumError } = await supabase
+    .from('album')
+    .select('id, user_id')
+    .eq('id', albumId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (albumError || !album) throw new Error('Album not found');
+
+  const { error: deleteError, count } = await supabase
+    .from('album_photo')
+    .delete({ count: 'exact' })
+    .eq('album_id', albumId)
+    .in('photo_id', uniquePhotoIds);
+
+  if (deleteError) throw deleteError;
+
+  let remainingRows = null;
+  let remainingError = null;
+
+  ({ data: remainingRows, error: remainingError } = await supabase
+    .from('album_photo')
+    .select('photo_id, created_at')
+    .eq('album_id', albumId)
+    .order('created_at', { ascending: true }));
+
+  if (remainingError) {
+    ({ data: remainingRows, error: remainingError } = await supabase
+      .from('album_photo')
+      .select('photo_id')
+      .eq('album_id', albumId));
+  }
+
+  if (remainingError) throw remainingError;
+
+  const latestPhotoId =
+    (remainingRows && remainingRows.length > 0)
+      ? remainingRows[remainingRows.length - 1].photo_id
+      : null;
+
+  const { error: updateError } = await supabase
+    .from('album')
+    .update({ cover_photo_id: latestPhotoId })
+    .eq('id', albumId)
+    .eq('user_id', user.id);
+
+  if (updateError) throw updateError;
+
+  return {
+    album_id: albumId,
+    removed_count: count ?? 0,
+    cover_photo_id: latestPhotoId,
+  };
+};

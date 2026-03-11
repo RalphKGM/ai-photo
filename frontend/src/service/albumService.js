@@ -49,3 +49,19 @@ export const addPhotosToAlbum = async ({ albumId, photoIds }) => {
   if (!response.ok) throw new Error(data.error || 'Failed to add photos to album');
   return data;
 };
+
+export const removePhotosFromAlbum = async ({ albumId, photoIds }) => {
+  const token = await getSession();
+  const response = await fetch(`${API_URL}/api/albums/${albumId}/photos`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ photoIds }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'Failed to remove photos from album');
+  return data;
+};

@@ -21,7 +21,14 @@ import PhotoItem from '../../components/PhotoItem.jsx';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_COLUMNS = 4;
 
-export default function AlbumDetail({ album, onBack, onPhotosChange, onAddPhotos, canAddPhotos }) {
+export default function AlbumDetail({
+  album,
+  onBack,
+  onPhotosChange,
+  onAddPhotos,
+  canAddPhotos,
+  onRemovePhotos,
+}) {
   const insets = useSafeAreaInsets();
   const { isDarkMode } = useThemeContext();
   const colors = getThemeColors(isDarkMode);
@@ -43,7 +50,7 @@ export default function AlbumDetail({ album, onBack, onPhotosChange, onAddPhotos
   const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedPhotoIds, setSelectedPhotoIds] = useState([]);
-  const [isDeletingSelectedPhotos, setIsDeletingSelectedPhotos] = useState(false);
+  const [isRemovingSelectedPhotos, setIsRemovingSelectedPhotos] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -123,50 +130,25 @@ export default function AlbumDetail({ album, onBack, onPhotosChange, onAddPhotos
     }
   }, [selectedIndex, isDeletingPhoto, photos, onPhotosChange]);
 
-  const handleDeleteSelectedPhotos = useCallback(() => {
-    if (selectedCount === 0 || isDeletingSelectedPhotos) return;
+  const handleRemoveSelectedPhotos = useCallback(() => {
+    if (selectedCount === 0 || isRemovingSelectedPhotos) return;
 
     Alert.alert(
-      'Delete selected photos',
-      `Delete ${selectedCount} ${selectedCount === 1 ? 'photo' : 'photos'}? This cannot be undone.`,
+      'Remove from album',
+      `Remove ${selectedCount} ${selectedCount === 1 ? 'photo' : 'photos'} from this album?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
-          style: 'destructive',
+          text: 'Remove',
           onPress: async () => {
             try {
-              setIsDeletingSelectedPhotos(true);
-              const idsToDelete = [...selectedPhotoIds];
-              const results = await Promise.allSettled(
-                idsToDelete.map(async (photoId) => {
-                  await deletePhoto(photoId);
-                  await removePhotoFromCache(photoId);
-                  return photoId;
-                })
-              );
-
-              const deletedIds = results
-                .filter((result) => result.status === 'fulfilled')
-                .map((result) => result.value);
-
-              if (deletedIds.length > 0) {
-                const deletedSet = new Set(deletedIds);
-                const updated = photos.filter((p) => !deletedSet.has(p.id));
-                setPhotos(updated);
-                onPhotosChange(updated, deletedIds);
-              }
-
-              const failedCount = results.length - deletedIds.length;
-              if (failedCount > 0) {
-                Alert.alert('Delete incomplete', `${failedCount} photo(s) could not be deleted.`);
-              }
-
+              setIsRemovingSelectedPhotos(true);
+              await onRemovePhotos(selectedPhotoIds);
               clearSelection();
             } catch (error) {
-              Alert.alert('Error', error.message || 'Failed to delete selected photos');
+              Alert.alert('Error', error.message || 'Failed to remove selected photos');
             } finally {
-              setIsDeletingSelectedPhotos(false);
+              setIsRemovingSelectedPhotos(false);
             }
           },
         },
@@ -174,10 +156,9 @@ export default function AlbumDetail({ album, onBack, onPhotosChange, onAddPhotos
     );
   }, [
     selectedCount,
-    isDeletingSelectedPhotos,
+    isRemovingSelectedPhotos,
     selectedPhotoIds,
-    photos,
-    onPhotosChange,
+    onRemovePhotos,
     clearSelection,
   ]);
 
@@ -214,15 +195,15 @@ export default function AlbumDetail({ album, onBack, onPhotosChange, onAddPhotos
           </Text>
 
           <Pressable
-            onPress={handleDeleteSelectedPhotos}
-            disabled={selectedCount === 0 || isDeletingSelectedPhotos}
+            onPress={handleRemoveSelectedPhotos}
+            disabled={selectedCount === 0 || isRemovingSelectedPhotos}
             className="py-1 pl-3"
-            style={{ opacity: selectedCount === 0 || isDeletingSelectedPhotos ? 0.4 : 1 }}
+            style={{ opacity: selectedCount === 0 || isRemovingSelectedPhotos ? 0.4 : 1 }}
           >
-            {isDeletingSelectedPhotos ? (
-              <ActivityIndicator size="small" color="#EF4444" />
+            {isRemovingSelectedPhotos ? (
+              <ActivityIndicator size="small" color={colors.icon} />
             ) : (
-              <Text className="text-base font-semibold text-red-500">Delete</Text>
+              <Text className="text-base font-semibold text-blue-500">Remove</Text>
             )}
           </Pressable>
         </View>

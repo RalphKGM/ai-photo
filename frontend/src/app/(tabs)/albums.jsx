@@ -20,7 +20,7 @@ import { getThemeColors } from '../../theme/appColors.js';
 import AlbumDetail from '../../components/albums/AlbumDetail.jsx';
 import AlbumCard from '../../components/albums/AlbumCard.jsx';
 import PhotoItem from '../../components/PhotoItem.jsx';
-import { addPhotosToAlbum, createAlbum, getAlbums } from '../../service/albumService.js';
+import { addPhotosToAlbum, createAlbum, getAlbums, removePhotosFromAlbum } from '../../service/albumService.js';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CREATE_COLUMNS = 4;
@@ -317,6 +317,45 @@ export default function Albums() {
     }
   }, [openAlbum, selectedAddPhotoIds, photoMap, handleAlbumPhotosChange]);
 
+  const handleRemoveFromAlbum = useCallback(async (photoIds) => {
+    if (!openAlbum?.id) return;
+    const idsToRemove = (photoIds || []).filter(Boolean);
+    if (idsToRemove.length === 0) return;
+
+    await removePhotosFromAlbum({ albumId: openAlbum.id, photoIds: idsToRemove });
+
+    const removedSet = new Set(idsToRemove);
+    const updatedPhotos = (openAlbum.photos || []).filter((photo) => !removedSet.has(photo.id));
+    const nextPhotoIds = updatedPhotos.map((photo) => photo.id);
+    const nextCover = updatedPhotos[updatedPhotos.length - 1] ?? null;
+
+    setAlbums((prev) =>
+      prev.map((album) =>
+        album.id === openAlbum.id
+          ? {
+              ...album,
+              photos: updatedPhotos,
+              photo_ids: nextPhotoIds,
+              coverPhoto: nextCover,
+              cover_photo_id: nextCover?.id ?? null,
+            }
+          : album
+      )
+    );
+
+    setOpenAlbum((prev) =>
+      prev && prev.id === openAlbum.id
+        ? {
+            ...prev,
+            photos: updatedPhotos,
+            photo_ids: nextPhotoIds,
+            coverPhoto: nextCover,
+            cover_photo_id: nextCover?.id ?? null,
+          }
+        : prev
+    );
+  }, [openAlbum]);
+
   const renderAddPhotoItem = useCallback(
     ({ item }) => (
       <PhotoItem
@@ -416,6 +455,7 @@ export default function Albums() {
             onPhotosChange={handleAlbumPhotosChange}
             onAddPhotos={openAddPhotos}
             canAddPhotos={availablePhotos.length > 0}
+            onRemovePhotos={handleRemoveFromAlbum}
           />
         </Animated.View>
       )}
