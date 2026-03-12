@@ -49,14 +49,14 @@ TAG CATEGORIES (include all relevant ones):
 - Filipino context: philippines, manila, filipino-food, jeepney, festival
 
 [CATEGORY]
-<comma-separated list of ONLY strongly applicable categories. Omit any category that does not clearly apply. A single photo CAN have multiple categories. It is perfectly fine to return an empty value here if none of the 5 categories fit.
+<comma-separated list of ONLY strongly applicable categories. Omit any category that does not clearly apply. A single photo CAN have multiple categories. It is perfectly fine to return 'none' value here if none of the 5 categories fit.
 
 Categories and when to use them:
-- Food â†’ main subject is a recognizable food item or dish
-- Nature â†’ main subject is a landscape, plant, sky, body of water, or natural environment
-- Animals â†’ main subject is an animal or creature of any kind
-- People â†’ main subject is a person or group of people (real, not illustrated)
-- Travel â†’ main subject is a recognizable landmark, tourist destination, or travel location
+- Food -> main subject is a recognizable food item or dish
+- Nature -> main subject is a landscape, plant, sky, body of water, or natural environment
+- Animals -> main subject is an animal or creature of any kind
+- People -> main subject is a person or group of people (real, not illustrated); does NOT apply if people are merely visible in the background or periphery but are not the primary focus
+- Travel -> main subject is a recognizable landmark, tourist destination, or travel location
 - None
 `;
 
