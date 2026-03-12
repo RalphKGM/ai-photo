@@ -85,14 +85,17 @@ export default function Library() {
     }
   }, [handleGetPhotos]);
 
-  // scroll to bottom (latest photo)
+  // scroll to bottom only when new photos are uploaded (not on initial load)
+  const prevPhotoCountRef = useRef(0);
   useEffect(() => {
-    if (photos.length > 0) {
+    const isNewUpload = photos.length > prevPhotoCountRef.current && prevPhotoCountRef.current > 0;
+    prevPhotoCountRef.current = photos.length;
+    if (isNewUpload) {
       setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: false });
+        flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [photos]);
+  }, [photos.length]);
 
   useEffect(() => {
     let mounted = true;

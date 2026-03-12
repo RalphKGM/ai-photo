@@ -26,7 +26,7 @@ Search your photos using natural language. Upload a photo, and Akashic's AI will
 ### Android
 Download the latest APK and install it directly on your phone:
 
-> **[App Link](https://expo.dev/artifacts/eas/9Gg5ffpD5UTCjgBsUy5ZSS.apk)**
+> **[App Link](https://expo.dev/artifacts/eas/nD8w2p1RjZFd3QJvYJhK1v.apk)**
 
 - Allow "Install from unknown sources"
 - Allow "Access to all media files"

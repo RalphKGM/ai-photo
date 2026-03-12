@@ -1,14 +1,15 @@
 import Constants from 'expo-constants';
 
 const getApiUrl = () => {
-  const hostUri = Constants.expoConfig?.hostUri;
-  if (hostUri) {
-    const ip = hostUri.split(':')[0];
-    return `http://${ip}:3000`;
+  if (__DEV__) {
+    const hostUri = Constants.expoConfig?.hostUri;
+    if (hostUri) {
+      const ip = hostUri.split(':')[0];
+      return `http://${ip}:3000`;
+    }
+    return 'http://localhost:3000';
   }
-  return 'http://localhost:3000';
+  return 'https://akashic.up.railway.app';
 };
 
 export const API_URL = getApiUrl();
-
-//export const API_URL = "https://ai-photo-production.up.railway.app";
