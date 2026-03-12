@@ -67,7 +67,6 @@ export default function Albums() {
     handleDeleteAlbum,
   } = useAlbums({ photos, setPhotos });
 
-  // --- Auto category albums (from paste 1) ---
   const categoryAlbums = useMemo(() => {
     const grouped = {};
     for (const photo of photos) {
@@ -86,14 +85,13 @@ export default function Albums() {
       }));
   }, [photos]);
 
-  const categoryAlbumColumns = useMemo(() => {
-    const cols = [];
+  const categoryAlbumRows = useMemo(() => {
+    const rows = [];
     for (let i = 0; i < categoryAlbums.length; i += 2) {
-      cols.push(categoryAlbums.slice(i, i + 2));
+      rows.push(categoryAlbums.slice(i, i + 2));
     }
-    return cols;
+    return rows;
   }, [categoryAlbums]);
-  // -------------------------------------------
 
   const renderAlbumPage = useCallback(
     ({ item: page }) => (
@@ -176,7 +174,7 @@ export default function Albums() {
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 32 }}
+          contentContainerStyle={{ paddingBottom: 240 }}
         >
           {/* Custom Albums (pager) */}
           {albums.length > 0 && (
@@ -190,31 +188,40 @@ export default function Albums() {
             />
           )}
 
-          {/* Divider + Category Albums */}
+          {/* Category Albums */}
           {categoryAlbums.length > 0 && (
             <>
-              {/* Horizontal scroll of category album cards */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}
-              >
-                {categoryAlbumColumns.map((col, i) => (
+              {/* Header divider */}
+              <View className="mx-4 mt-2 mb-1">
+                 
+                <Text className={`mx-3 mt-5 text-s font-bold uppercase ${colors.textSecondary}`}>
+                  Category
+                </Text>
+          
+              </View>
+
+              {/* Same px/pt/pb as renderAlbumPage, 2-per-row grid */}
+              <View className="px-4 pt-5 pb-3">
+                {categoryAlbumRows.map((row, i) => (
                   <View
                     key={i}
-                    style={{ gap: 12, marginRight: i < categoryAlbumColumns.length - 1 ? 12 : 0 }}
+                    className="flex-row justify-between"
+                    style={{ marginBottom: i < categoryAlbumRows.length - 1 ? 12 : 0 }}
                   >
-                    {col.map(album => (
-                      <AlbumCard
-                        key={album.id}
-                        album={album}
-                        onPress={handleOpenAlbum}
-                        isDarkMode={isDarkMode}
-                      />
+                    {row.map((album) => (
+                      <View key={album.id} className="w-[180px]">
+                        <AlbumCard
+                          album={album}
+                          onPress={handleOpenAlbum}
+                          isDarkMode={isDarkMode}
+                        />
+                      </View>
                     ))}
+                    {/* Keep right side aligned when only 1 in row */}
+                    {row.length === 1 && <View className="w-[180px]" />}
                   </View>
                 ))}
-              </ScrollView>
+              </View>
             </>
           )}
         </ScrollView>
