@@ -5,7 +5,6 @@ import {
     deletePhotoController,
     getPhotoController,
     processPhotoController,
-    reprocessPhotoController,
     updatePhotoDescriptionsController,
     getAllPhotosController
 } from '../controller/photo.controller.js';
@@ -24,6 +23,5 @@ router.delete('/photo/:id', deletePhotoController);
 router.get('/photo/:id', getPhotoController);
 router.get('/photos', getAllPhotosController);
 router.patch('/photo/:id/descriptions', updatePhotoDescriptionsController);
-router.post('/photo/:id/reprocess', upload.single('image'), reprocessPhotoController);
 
 export default router;
