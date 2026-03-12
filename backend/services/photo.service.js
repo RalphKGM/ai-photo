@@ -7,7 +7,7 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
-async function rerankWithGPT(query, candidates) {
+const rerankWithGPT = async(query, candidates) => {
     if (!candidates || candidates.length === 0) return [];
 
     const candidateList = candidates.map((c, i) =>
