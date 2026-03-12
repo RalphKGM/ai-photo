@@ -1,5 +1,5 @@
 import { API_URL } from '../config/api.js';
-import { getSession } from './auth/authService.js';
+import { getSession } from './authService.js';
 
 export const getAlbums = async () => {
   const token = await getSession();

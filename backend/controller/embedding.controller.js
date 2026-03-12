@@ -1,4 +1,4 @@
-import { generateEmbedding } from "../services/ai/generateEmbedding.js";
+import { generateEmbedding } from "../services/ai.service.js";
 
 export const generateEmbeddingController = async (req, res) => {
     try {

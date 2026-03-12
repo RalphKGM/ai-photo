@@ -6,7 +6,7 @@ import {
   removePhotosFromAlbum,
   renameAlbum,
   deleteAlbum,
-} from '../services/albumService.js';
+} from '../services/album.service.js';
 
 export const getAlbumsController = async (req, res) => {
   try {

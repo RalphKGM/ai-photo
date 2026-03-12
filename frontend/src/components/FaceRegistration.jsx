@@ -3,7 +3,7 @@ import { View, Text, Pressable, Alert, ActivityIndicator, Modal, TextInput } fro
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { getThemeColors } from '../theme/appColors';
-import { getSession } from '../service/auth/authService';
+import { getSession } from '../service/authService';
 import { API_URL } from '../config/api';
 
 const registerFace = async (name, imageUri) => {

@@ -1,5 +1,5 @@
 import express from 'express';
-import { generateEmbeddingController } from '../controller/embeddingController.js';
+import { generateEmbeddingController } from '../controller/embedding.controller.js';
 
 const router = express.Router();
 

@@ -6,7 +6,7 @@ import {
   getAlbumsController,
   removePhotosFromAlbumController,
   renameAlbumController,
-} from '../controller/albumController.js';
+} from '../controller/album.controller.js';
 
 const router = express.Router();
 

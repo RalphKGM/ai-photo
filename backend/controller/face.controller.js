@@ -1,4 +1,4 @@
-import { registerFace, detectFacesInImage } from '../services/faceRecognition.js';
+import { registerFace, detectFacesInImage } from '../services/face.service.js';
 import { getClientAuthToken } from '../utils/getClientAuthToken.js';
 
 // POST /api/faces/register

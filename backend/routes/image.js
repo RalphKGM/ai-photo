@@ -1,11 +1,13 @@
 import express from 'express';
 import multer from 'multer';
-import { processImageController } from '../controller/processImageController.js';
-import { batchProcessImagesController } from '../controller/batchProcessImagesController.js';
-import { deletePhotoController } from '../controller/deletePhotoController.js';
-import { getPhotoController } from '../controller/getPhotoController.js';
-import { reprocessImageController } from '../controller/reprocessImageController.js';
-import { updatePhotoDescriptionsController } from '../controller/updatePhotoDescriptionsController.js';
+import {
+    batchProcessImagesController,
+    deletePhotoController,
+    getPhotoController,
+    processImageController,
+    reprocessImageController,
+    updatePhotoDescriptionsController,
+} from '../controller/photo.controller.js';
 
 const router = express.Router();
 
