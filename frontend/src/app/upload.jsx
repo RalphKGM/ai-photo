@@ -70,42 +70,38 @@ export default function Upload() {
     try {
       for (let i = 0; i < selectedAssets.length; i += CONCURRENCY) {
         const chunk = selectedAssets.slice(i, i + CONCURRENCY);
-
-        const results = await Promise.allSettled(
-          chunk.map((asset) => processSinglePhoto(asset))
-        );
-
         const newPhotos = [];
-        results.forEach((outcome, j) => {
-          const asset = chunk[j];
-          if (outcome.status === 'rejected') {
-            console.log(`Photo ${i + j + 1} failed:`, outcome.reason?.message);
-            return;
-          }
-          const res = outcome.value;
-          if (res?.duplicate) {
-            duplicates.push(asset.uri);
-          } else if (res?.photo) {
-            newPhotos.push({
-              device_asset_id: res.photo.device_asset_id,
-              uri: asset.uri,
-              descriptive: res.photo.descriptive || null,
-              literal: res.photo.literal || null,
-              id: res.photo.id || null,
-              category: res.photo.category,
-              tags: res.photo.tags,
-              created_at: res.photo.created_at || null,
-            });
-          }
-        });
+
+        await Promise.allSettled(
+          chunk.map(async (asset, j) => {
+            try {
+              const res = await processSinglePhoto(asset);
+              if (res?.duplicate) {
+                duplicates.push(asset.uri);
+              } else if (res?.photo) {
+                newPhotos.push({
+                  device_asset_id: res.photo.device_asset_id,
+                  uri: asset.uri,
+                  descriptive: res.photo.descriptive || null,
+                  literal: res.photo.literal || null,
+                  id: res.photo.id || null,
+                  category: res.photo.category,
+                  tags: res.photo.tags,
+                  created_at: res.photo.created_at || null,
+                });
+              }
+            } catch (err) {
+              console.log(`Photo ${i + j + 1} failed:`, err?.message);
+            } finally {
+              completed += 1;
+              setUploadProgress({ current: completed, total, done: false });
+            }
+          })
+        );
 
         // append + cache all successful photos from this chunk
         newPhotos.forEach(appendPhoto);
         if (newPhotos.length > 0) await addPhotoToCache(newPhotos);
-
-        // update progress after each chunk
-        completed += chunk.length;
-        setUploadProgress({ current: completed, total, done: false });
       }
 
       if (duplicates.length > 0) {
