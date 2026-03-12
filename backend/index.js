@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import embed from './routes/embed.js';
 import photo from './routes/photo.js';
 import search from './routes/search.js';
 import faces from './routes/faces.js';
@@ -15,7 +14,6 @@ const PORT = process.env.PORT || 8080;
 app.use(cors());
 app.use(express.json());
 
-app.use('/api', embed);
 app.use('/api', photo);
 app.use('/api', search);
 app.use('/api', faces);
