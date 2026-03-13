@@ -271,7 +271,7 @@ export default function AlbumDetail({
         renderItem={renderItem}
         ItemSeparatorComponent={() => <View style={{ height: 1.5 }} />}
         columnWrapperStyle={{ gap: 1.5 }}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
       />
 
       <PhotoViewer
