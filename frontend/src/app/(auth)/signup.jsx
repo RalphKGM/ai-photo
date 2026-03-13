@@ -45,14 +45,18 @@ export default function Signup() {
     if (!validate()) return;
     setLoading(true);
     try {
-      await signup(email, password);
+      const data = await signup(email, password);
+      if (!data?.user?.identities?.length) {
+        Alert.alert('Signup Failed', 'Email is already registered.');
+        return;
+      }
       router.replace({ pathname: '(auth)/otp', params: { email } });
     } catch (err) {
-      Alert.alert('Signup failed', err.message);
+      Alert.alert('Signup Failed', err?.message || 'Something went wrong.');
     } finally {
       setLoading(false);
     }
-  }; 
+  };
 
   return (
     <KeyboardAvoidingView
