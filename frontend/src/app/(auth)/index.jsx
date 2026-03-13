@@ -16,7 +16,33 @@ export default function Login() {
   const dark = isDarkMode;
   const colors = getThemeColors(isDarkMode);
 
+  const validate = () => {
+    if (!email.trim()) {
+      Alert.alert('Login Error', 'Email is required.');
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Login Error', 'Please enter a valid email address.');
+      return false;
+    }
+
+    if (!password) {
+      Alert.alert('Login Error', 'Password is required.');
+      return false;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Login Error', 'Password must be at least 6 characters.');
+      return false;
+    }
+
+    return true;
+  };
+
   const handleLogin = async () => {
+    if (!validate()) return;
     setLoading(true);
     try {
       await login(email, password);
