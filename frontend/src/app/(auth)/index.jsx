@@ -102,18 +102,11 @@ export default function Login() {
           </Pressable>
         </View>
 
-        {/* Forgot Password */}
-        <Pressable className="self-end mb-6">
-          <Text className={`text-sm ${dark ? 'text-zinc-400' : 'text-gray-500'}`}>
-            Forgot Password?
-          </Text>
-        </Pressable>
-
         {/* Login Button */}
         <Pressable
           onPress={handleLogin}
           disabled={loading}
-          className={`h-14 rounded-full items-center justify-center mb-8 ${dark ? 'bg-zinc-100' : 'bg-black'}`}
+          className={`h-14 rounded-full items-center justify-center my-8 ${dark ? 'bg-zinc-100' : 'bg-black'}`}
         >
           {({ pressed }) => (
             <Text className={`text-lg font-semibold ${dark ? 'text-zinc-900' : 'text-white'}`} style={{ opacity: pressed ? 0.7 : 1 }}>
