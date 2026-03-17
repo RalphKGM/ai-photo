@@ -142,4 +142,4 @@ All endpoints require `Authorization: Bearer <token>` header.
 
 ## 👥 Contributors
 
-Built by 
+Built by Alexander Espia and Ralph Morales
