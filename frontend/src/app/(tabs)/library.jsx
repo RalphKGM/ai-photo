@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import {
   View,
   FlatList,
@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
 import { useRouter } from 'expo-router';
+import { supabase } from '../../config/supabase.js';
 import PhotoItem from '../../components/PhotoItem.jsx';
 import PhotoViewer from '../../components/PhotoViewer.jsx';
 import { usePhotoContext } from '../../context/PhotoContext.jsx';
@@ -74,17 +75,34 @@ export default function Library() {
     setPhotos,
   });
 
-  // scroll to bottom (latest photo)
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await handleGetPhotos({ forceRefresh: true });
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [handleGetPhotos]);
+
+  // scroll to bottom only when new photos are uploaded (not on initial load)
+  const prevPhotoCountRef = useRef(0);
   useEffect(() => {
-    if (photos.length > 0) {
+    const isNewUpload = photos.length > prevPhotoCountRef.current && prevPhotoCountRef.current > 0;
+    prevPhotoCountRef.current = photos.length;
+    if (isNewUpload) {
       setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: false });
+        flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [photos]);
+  }, [photos.length]);
 
   useEffect(() => {
-    handleGetPhotos();
+    let mounted = true;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (mounted && session) handleGetPhotos();
+    });
+    return () => { mounted = false; };
   }, [handleGetPhotos]);
 
   const renderPhotoItem = useCallback(
@@ -162,11 +180,21 @@ export default function Library() {
               </Animated.View>
             )}
 
-            <View className="flex-row items-center pt-2">
+            <View className="flex-row items-center pt-2 gap-4">
               {!isSearching ? (
-                <Pressable onPress={() => toggleSearch(isSelectionMode)}>
-                  <Ionicons name="search" size={25} color={colors.icon} />
-                </Pressable>
+                <>
+                  <Pressable onPress={handleRefresh} disabled={isRefreshing}>
+                    <Ionicons
+                      name="refresh"
+                      size={23}
+                      color={colors.icon}
+                      style={{ opacity: isRefreshing ? 0.4 : 1 }}
+                    />
+                  </Pressable>
+                  <Pressable onPress={() => toggleSearch(isSelectionMode)}>
+                    <Ionicons name="search" size={25} color={colors.icon} />
+                  </Pressable>
+                </>
               ) : (
                 <Pressable onPress={() => toggleSearch(isSelectionMode)} className="px-1 py-1">
                   <Text className={`text-base font-medium ${colors.title}`}>Cancel</Text>

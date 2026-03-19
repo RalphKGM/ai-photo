@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, Pressable, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { signup } from '../../service/auth/authService.js';
+import { signup } from '../../service/authService.js';
 import { useThemeContext } from '../../context/ThemeContext.jsx';
 import { getThemeColors } from '../../theme/appColors.js';
 
@@ -18,23 +18,23 @@ export default function Signup() {
 
   const validate = () => {
     if (!email.trim()) {
-      Alert.alert('Validation Error', 'Email is required.');
+      Alert.alert('Signup Error', 'Email is required.');
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      Alert.alert('Validation Error', 'Please enter a valid email address.');
+      Alert.alert('Signup Error', 'Please enter a valid email address.');
       return false;
     }
 
     if (!password) {
-      Alert.alert('Validation Error', 'Password is required.');
+      Alert.alert('Signup Error', 'Password is required.');
       return false;
     }
 
     if (password.length < 6) {
-      Alert.alert('Validation Error', 'Password must be at least 6 characters.');
+      Alert.alert('Signup Error', 'Password must be at least 6 characters.');
       return false;
     }
 
@@ -45,14 +45,18 @@ export default function Signup() {
     if (!validate()) return;
     setLoading(true);
     try {
-      await signup(email, password);
-      router.replace('(tabs)/library');
+      const data = await signup(email, password);
+      if (!data?.user?.identities?.length) {
+        Alert.alert('Signup Failed', 'Email is already registered.');
+        return;
+      }
+      router.replace({ pathname: '(auth)/otp', params: { email } });
     } catch (err) {
-      Alert.alert('Signup failed', err.message);
+      Alert.alert('Signup Failed', err?.message || 'Something went wrong.');
     } finally {
       setLoading(false);
     }
-  }; 
+  };
 
   return (
     <KeyboardAvoidingView
@@ -107,10 +111,10 @@ export default function Signup() {
         <Pressable
           onPress={handleSignup}
           disabled={loading}
-          className={`h-14 rounded-full items-center justify-center mb-8 ${colors.button}`}
+          className={`h-14 rounded-full items-center justify-center mb-8 ${dark ? 'bg-zinc-100' : 'bg-black'}`}
         >
           {({ pressed }) => (
-            <Text className={`text-lg font-semibold ${colors.buttonText}`} style={{ opacity: pressed ? 0.7 : 1 }}>
+            <Text className={`text-lg font-semibold ${dark ? 'text-zinc-900' : 'text-white'}`} style={{ opacity: pressed ? 0.7 : 1 }}>
               {loading ? 'Signing in...' : 'Sign Up'}
             </Text>
           )}

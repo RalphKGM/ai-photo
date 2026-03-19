@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, Pressable, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { login } from '../../service/auth/authService.js';
+import { login } from '../../service/authService.js';
 import { useThemeContext } from '../../context/ThemeContext.jsx';
 import { getThemeColors } from '../../theme/appColors.js';
 
@@ -16,7 +16,33 @@ export default function Login() {
   const dark = isDarkMode;
   const colors = getThemeColors(isDarkMode);
 
+  const validate = () => {
+    if (!email.trim()) {
+      Alert.alert('Login Error', 'Email is required.');
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Login Error', 'Please enter a valid email address.');
+      return false;
+    }
+
+    if (!password) {
+      Alert.alert('Login Error', 'Password is required.');
+      return false;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Login Error', 'Password must be at least 6 characters.');
+      return false;
+    }
+
+    return true;
+  };
+
   const handleLogin = async () => {
+    if (!validate()) return;
     setLoading(true);
     try {
       await login(email, password);
@@ -76,21 +102,14 @@ export default function Login() {
           </Pressable>
         </View>
 
-        {/* Forgot Password */}
-        <Pressable className="self-end mb-6">
-          <Text className={`text-sm ${dark ? 'text-zinc-400' : 'text-gray-500'}`}>
-            Forgot Password?
-          </Text>
-        </Pressable>
-
         {/* Login Button */}
         <Pressable
           onPress={handleLogin}
           disabled={loading}
-          className={`h-14 rounded-full items-center justify-center mb-8 ${colors.button}`}
+          className={`h-14 rounded-full items-center justify-center my-8 ${dark ? 'bg-zinc-100' : 'bg-black'}`}
         >
           {({ pressed }) => (
-            <Text className={`text-lg font-semibold ${colors.buttonText}`} style={{ opacity: pressed ? 0.7 : 1 }}>
+            <Text className={`text-lg font-semibold ${dark ? 'text-zinc-900' : 'text-white'}`} style={{ opacity: pressed ? 0.7 : 1 }}>
               {loading ? 'Logging in...' : 'Login'}
             </Text>
           )}

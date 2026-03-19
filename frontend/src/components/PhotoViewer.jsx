@@ -211,6 +211,7 @@ export default function PhotoViewer({
               const uri = assetId
                 ? (photo.item?.uri ?? (Platform.OS === 'android' ? `content://media/external/images/media/${assetId}` : `ph://${assetId}`))
                 : null;
+                
               const key = photo.item?.id ?? photo.id ?? index;
               const shouldRender = Math.abs(index - currentIndex) <= 3;
 
@@ -364,12 +365,6 @@ export default function PhotoViewer({
                     )}
                   </>
                 )}
-                <View className="mb-4">
-                  <Text className={`text-xs font-semibold uppercase tracking-wider mb-1 ${colors.title}`}>Manual Description</Text>
-                  <Text className={`text-sm leading-relaxed ${colors.body}`}>
-                    {photoData?.manual_description ?? 'None'}
-                  </Text>
-                </View>
 
                 {tags.length > 0 && (
                   <View className="mb-4">

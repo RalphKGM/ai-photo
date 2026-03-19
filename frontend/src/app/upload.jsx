@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useState, useEffect, useRef } from 'react';
-import { processPhotos } from '../service/photoService';
+import { processSinglePhoto } from '../service/photoService';
 import { usePhotoContext } from '../context/PhotoContext';
 import { useThemeContext } from '../context/ThemeContext.jsx';
 import { getThemeColors } from '../theme/appColors.js';
@@ -34,6 +34,7 @@ export default function Upload() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
+      selectionLimit: 50, 
       quality: 1,
     });
 
@@ -59,78 +60,56 @@ export default function Upload() {
   const uploadSelected = async () => {
     if (!selectedAssets || selectedAssets.length === 0) return;
     const total = selectedAssets.length;
+    const CONCURRENCY = 3;
     setDuplicateWarning(null);
     setUploadProgress({ current: 0, total, done: false });
     progressAnim.setValue(0);
 
+    const duplicates = [];
+    let completed = 0;
+
     try {
-      if (total === 1) {
-        const asset = selectedAssets[0];
-        const res = await processPhotos([asset]);
+      for (let i = 0; i < selectedAssets.length; i += CONCURRENCY) {
+        const chunk = selectedAssets.slice(i, i + CONCURRENCY);
+        const newPhotos = [];
 
-        if (res?.duplicate) {
-          setDuplicateWarning({
-            count: 1,
-            items: [asset.uri],
-          });
-        }
-
-        if (res?.photo) {
-          const newPhoto = {
-            device_asset_id: res.photo.device_asset_id,
-            uri: asset.uri,
-            descriptive: res.photo.descriptive || null,
-            literal: res.photo.literal || null,
-            manual_description: res.photo.manual_description || null,
-            id: res.photo.id || null,
-            category: res.photo.category,
-            tags: res.photo.tags,
-            created_at: res.photo.created_at || null,
-          };
-          appendPhoto(newPhoto);
-          await addPhotoToCache([newPhoto]);
-        }
-      } else {
-        const res = await processPhotos(selectedAssets);
-        const successfulResults = Array.isArray(res?.results) ? res.results : [];
-        const newPhotos = successfulResults
-          .map((r) => {
-            const asset = selectedAssets[r.index];
-            if (!asset || !r.photo) return null;
-            return {
-              device_asset_id: r.photo.device_asset_id,
-              uri: asset.uri,
-              descriptive: r.photo.descriptive || null,
-              literal: r.photo.literal || null,
-              manual_description: r.photo.manual_description || null,
-              id: r.photo.id || null,
-              category: r.photo.category,
-              tags: r.photo.tags,
-              created_at: r.photo.created_at || null,
-            };
+        await Promise.allSettled(
+          chunk.map(async (asset, j) => {
+            try {
+              const res = await processSinglePhoto(asset);
+              if (res?.duplicate) {
+                duplicates.push(asset.uri);
+              } else if (res?.photo) {
+                newPhotos.push({
+                  device_asset_id: res.photo.device_asset_id,
+                  uri: asset.uri,
+                  descriptive: res.photo.descriptive || null,
+                  literal: res.photo.literal || null,
+                  id: res.photo.id || null,
+                  category: res.photo.category,
+                  tags: res.photo.tags,
+                  created_at: res.photo.created_at || null,
+                });
+              }
+            } catch (err) {
+              console.log(`Photo ${i + j + 1} failed:`, err?.message);
+            } finally {
+              completed += 1;
+              setUploadProgress({ current: completed, total, done: false });
+            }
           })
-          .filter(Boolean);
-
-        newPhotos.forEach(appendPhoto);
-        if (newPhotos.length > 0) {
-          await addPhotoToCache(newPhotos);
-        }
-
-        const duplicateErrors = (Array.isArray(res?.errors) ? res.errors : []).filter(
-          (e) => e?.error === 'DUPLICATE_IMAGE'
         );
-        if (duplicateErrors.length > 0) {
-          setDuplicateWarning({
-            count: duplicateErrors.length,
-            items: duplicateErrors
-              .map((e) => selectedAssets[e.index]?.uri)
-              .filter(Boolean),
-          });
-        }
+
+        // append + cache all successful photos from this chunk
+        newPhotos.forEach(appendPhoto);
+        if (newPhotos.length > 0) await addPhotoToCache(newPhotos);
+      }
+
+      if (duplicates.length > 0) {
+        setDuplicateWarning({ count: duplicates.length, items: duplicates });
       }
 
       setUploadProgress({ current: total, total, done: true });
-
       setTimeout(() => {
         setUploadProgress(null);
         setSelectedAssets([]);
@@ -140,7 +119,6 @@ export default function Upload() {
       setUploadProgress(null);
     }
   };
-
   const isUploading = uploadProgress && !uploadProgress.done;
   const isDone = uploadProgress?.done;
   const pct = uploadProgress
@@ -241,28 +219,29 @@ export default function Upload() {
 
         {/* upload progress card */}
         {isUploading && (
-          <View className="mb-4 p-5 bg-[#F5F5F5] rounded-2xl">
+          <View className={`mb-4 p-5 rounded-2xl ${colors.cardBg}`}>
             <View className="flex-row items-center mb-4">
-              <View className="w-10 h-10 rounded-full bg-[#52525B] items-center justify-center mr-3">
-                <ActivityIndicator size="small" color="white" />
+              <View className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${colors.iconBg}`}>
+                <ActivityIndicator size="small" color={colors.iconColor} />
               </View>
               <View className="flex-1">
-                <Text className="text-[#52525B] font-bold text-base">
+                <Text className={`font-bold text-base ${colors.textPrimary}`}>
                   Analyzing your photos
                 </Text>
-                <Text className="text-[#737373] text-sm mt-0.5">
+                <Text className={`text-sm mt-0.5 ${colors.textSecondary}`}>
                   AI is describing and indexing your images
                 </Text>
               </View>
-              <Text className="text-[#52525B] font-bold text-base ml-2">
+              <Text className={`font-bold text-base ml-2 ${colors.textPrimary}`}>
                 {pct}%
               </Text>
             </View>
 
-            <View className="h-2 bg-[#D4D4D8] rounded-full overflow-hidden">
+            <View className={`h-2 rounded-full overflow-hidden ${colors.line}`}>
               <Animated.View
-                className="h-full bg-[#52525B] rounded-full"
+                className="h-full rounded-full"
                 style={{
+                  backgroundColor: colors.iconColor,
                   width: progressAnim.interpolate({
                     inputRange: [0, 1],
                     outputRange: ['0%', '100%'],
@@ -272,10 +251,10 @@ export default function Upload() {
             </View>
 
             <View className="flex-row justify-between mt-2">
-              <Text className="text-[#737373] text-xs">
+              <Text className={`text-xs ${colors.textSecondary}`}>
                 {uploadProgress.current} of {uploadProgress.total} photo{uploadProgress.total !== 1 ? 's' : ''} done
               </Text>
-              <Text className="text-[#737373] text-xs">
+              <Text className={`text-xs ${colors.textSecondary}`}>
                 {uploadProgress.total - uploadProgress.current} remaining
               </Text>
             </View>
@@ -285,22 +264,22 @@ export default function Upload() {
         )}
         
         {isDone && (
-          <View className="mb-4 p-5 bg-[#F0FFF4] rounded-2xl">
+          <View className={`mb-4 p-5 rounded-2xl ${colors.cardBg}`}>
             <View className="flex-row items-center">
-              <View className="w-10 h-10 rounded-full bg-[#22C55E] items-center justify-center mr-3">
-                <Ionicons name="checkmark" size={22} color="white" />
+              <View className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${colors.iconBg}`}>
+                <Ionicons name="checkmark" size={22} color={colors.iconColor} />
               </View>
               <View className="flex-1">
-                <Text className="text-green-700 font-bold text-base">
+                <Text className={`font-bold text-base ${colors.textPrimary}`}>
                   All done!
                 </Text>
-                <Text className="text-green-600 text-sm mt-0.5">
+                <Text className={`text-sm mt-0.5 ${colors.textSecondary}`}>
                   {uploadProgress.total} photo{uploadProgress.total !== 1 ? 's' : ''} added to your library
                 </Text>
               </View>
             </View>
-            <View className="h-2 bg-green-100 rounded-full overflow-hidden mt-4">
-              <View className="h-full bg-[#22C55E] rounded-full w-full" />
+            <View className={`h-2 rounded-full overflow-hidden mt-4 ${colors.line}`}>
+              <View className="h-full rounded-full w-full" style={{ backgroundColor: colors.iconColor }} />
             </View>
           </View>
         )}
@@ -317,6 +296,3 @@ export default function Upload() {
     </View>
   );
 }
-
-
-

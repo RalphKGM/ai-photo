@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import * as MediaLibrary from 'expo-media-library';
 import * as ImagePicker from 'expo-image-picker';
-import { getSession } from './auth/authService';
+import { getSession } from './authService';
 import { API_URL } from '../config/api.js';
 
 export const takePhoto = async () => {
@@ -28,7 +28,7 @@ export const takePhoto = async () => {
     formData.append('device_asset_id', photo.id);
 
     try {
-      const response = await fetch(`${API_URL}/api/image`, {
+      const response = await fetch(`${API_URL}/api/photo`, {
         method: 'POST',
         body: formData,
         headers: { 
@@ -43,7 +43,6 @@ export const takePhoto = async () => {
         uri: result.assets[0].uri,
         descriptive: data.photo?.descriptive || null,
         literal: data.photo?.literal || null,
-        manual_description: data.photo?.manual_description || null,
         id: data.photo?.id || null,
         category: data.photo?.category,
         tags: data.photo?.tags,
@@ -53,6 +52,31 @@ export const takePhoto = async () => {
         console.log("Upload failed", error);
         throw error;
     }
+};
+
+export const processSinglePhoto = async (photo) => {
+    const token = await getSession();
+    const assetId = Platform.OS === 'ios' ? photo.assetId : (photo.fileName ? photo.fileName.replace(/\.[^/.]+$/, '') : null);
+
+    const formData = new FormData();
+    formData.append('image', { uri: photo.uri, name: 'photo.jpg', type: 'image/jpeg' });
+    formData.append('device_asset_id', assetId);
+
+    const response = await fetch(`${API_URL}/api/photo`, {
+        method: 'POST',
+        body: formData,
+        headers: { 'Content-Type': 'multipart/form-data', 'Authorization': `Bearer ${token}` },
+    });
+
+    const data = await response.json();
+
+    if (response.status === 409 || data?.error === 'Duplicate image') {
+        return { duplicate: true };
+    }
+    if (!response.ok) {
+        throw new Error(data.error || 'Failed to process photo');
+    }
+    return data;
 };
 
 export const processPhotos = async (photos) => {
@@ -86,7 +110,7 @@ export const processPhotos = async (photos) => {
         });
     }
 
-    const api = assets.length === 1 ? `${API_URL}/api/image` : `${API_URL}/api/images/batch`;
+    const api = assets.length === 1 ? `${API_URL}/api/photo` : `${API_URL}/api/photos/batch`;
 
     const response = await fetch(api, {
         method: 'POST',
@@ -164,7 +188,7 @@ export const searchPhoto = async (query = '') => {
     try {
         const token = await getSession();
 
-        const response = await fetch(`${API_URL}/api/search`, {
+        const response = await fetch(`${API_URL}/api/photos/search`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

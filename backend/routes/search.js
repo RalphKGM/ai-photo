@@ -1,10 +1,8 @@
 import express from 'express';
-import { searchImagesController } from '../controller/searchImageController.js';
-import { getAllPhotosController } from '../controller/getAllPhotosController.js';
+import { searchPhotosController } from '../controller/photo.controller.js';
 
 const router = express.Router();
 
-router.post('/search', searchImagesController);
-router.get('/photos', getAllPhotosController);
+router.post('/photos/search', searchPhotosController);
 
 export default router;
